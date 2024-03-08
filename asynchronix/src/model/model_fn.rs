@@ -183,3 +183,86 @@ where
         self(model, arg, scheduler)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use futures_util::Future;
+
+    use crate::{
+        model::{markers, Model},
+        time::Scheduler,
+    };
+
+    trait InputFnTest<'a, M: Model, T, S>: Send + 'static {
+        /// The `Future` returned by the asynchronous method.
+        type Future: Future<Output = ()> + Send + 'a;
+        type Args;
+
+        /// Calls the method.
+        fn call(
+            self,
+            model: &'a mut M,
+            arg: Self::Args,
+            scheduler: &'a Scheduler<M>,
+        ) -> Self::Future;
+    }
+
+    impl<'a, M, T, Fut, F> InputFnTest<'a, M, fn(T), markers::AsyncWithScheduler> for F
+    where
+        M: Model,
+        Fut: Future<Output = ()> + Send + 'a,
+        F: FnOnce(&'a mut M, T, &'a Scheduler<M>) -> Fut + Send + 'static,
+    {
+        type Future = Fut;
+        type Args = T;
+
+        fn call(
+            self,
+            model: &'a mut M,
+            arg: Self::Args,
+            scheduler: &'a Scheduler<M>,
+        ) -> Self::Future {
+            self(model, arg, scheduler)
+        }
+    }
+
+    impl<'a, M, T0, T1, Fut, F> InputFnTest<'a, M, fn(T0, T1), markers::AsyncWithScheduler> for F
+    where
+        M: Model,
+        Fut: Future<Output = ()> + Send + 'a,
+        F: FnOnce(&'a mut M, T0, T1, &'a Scheduler<M>) -> Fut + Send + 'static,
+    {
+        type Future = Fut;
+        type Args = (T0, T1);
+
+        fn call(
+            self,
+            model: &'a mut M,
+            args: Self::Args,
+            scheduler: &'a Scheduler<M>,
+        ) -> Self::Future {
+            let (arg0, arg1) = args;
+            self(model, arg0, arg1, scheduler)
+        }
+    }
+
+    struct TestModel {
+    }
+
+    impl TestModel {
+        async fn input_fn0(&mut self, arg0: u32, _: &Scheduler<Self>) {}
+        async fn input_fn1(&mut self, arg0: u32, arg1: i32, _: &Scheduler<Self>) {}
+    }
+
+    impl Model for TestModel {}
+
+    fn test_input_fn_impl_0<T, F: for<'a> InputFnTest<'a, TestModel, fn(T), markers::AsyncWithScheduler>>(func: F) {}
+    fn test_input_fn_impl_1<T0, T1, F: for<'a> InputFnTest<'a, TestModel, fn(T0, T1), markers::AsyncWithScheduler>>(func: F) {}
+
+    #[test]
+    fn test_trait_impls() {
+        let test = TestModel {};
+        test_input_fn_impl_0(TestModel::input_fn0);
+        test_input_fn_impl_1(TestModel::input_fn1);
+    }
+}
