@@ -1,6 +1,7 @@
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use std::fmt;
+use std::sync::Arc;
 use std::time::Duration;
 
 use ciborium;
@@ -31,7 +32,7 @@ impl EventSourceRegistry {
     {
         match self.0.entry(name.into()) {
             Entry::Vacant(s) => {
-                s.insert(Box::new(source));
+                s.insert(Box::new(Arc::new(source)));
 
                 Ok(())
             }
@@ -58,14 +59,14 @@ pub(crate) trait EventSourceAny: Send + 'static {
     /// connected input ports.
     ///
     /// The argument is expected to conform to the serde CBOR encoding.
-    fn event(&mut self, serialized_arg: &[u8]) -> Result<Action, DeserializationError>;
+    fn event(&self, serialized_arg: &[u8]) -> Result<Action, DeserializationError>;
 
     /// Returns a cancellable action and a cancellation key; when processed, the
     /// action broadcasts an event to all connected input ports.
     ///
     /// The argument is expected to conform to the serde CBOR encoding.
     fn keyed_event(
-        &mut self,
+        &self,
         serialized_arg: &[u8],
     ) -> Result<(Action, ActionKey), DeserializationError>;
 
@@ -74,7 +75,7 @@ pub(crate) trait EventSourceAny: Send + 'static {
     ///
     /// The argument is expected to conform to the serde CBOR encoding.
     fn periodic_event(
-        &mut self,
+        &self,
         period: Duration,
         serialized_arg: &[u8],
     ) -> Result<Action, DeserializationError>;
@@ -85,7 +86,7 @@ pub(crate) trait EventSourceAny: Send + 'static {
     ///
     /// The argument is expected to conform to the serde CBOR encoding.
     fn keyed_periodic_event(
-        &mut self,
+        &self,
         period: Duration,
         serialized_arg: &[u8],
     ) -> Result<(Action, ActionKey), DeserializationError>;
@@ -95,28 +96,29 @@ pub(crate) trait EventSourceAny: Send + 'static {
     fn event_type_name(&self) -> &'static str;
 }
 
-impl<T> EventSourceAny for EventSource<T>
+impl<T> EventSourceAny for Arc<EventSource<T>>
 where
     T: DeserializeOwned + Clone + Send + 'static,
 {
-    fn event(&mut self, serialized_arg: &[u8]) -> Result<Action, DeserializationError> {
-        ciborium::from_reader(serialized_arg).map(|arg| self.event(arg))
+    fn event(&self, serialized_arg: &[u8]) -> Result<Action, DeserializationError> {
+        ciborium::from_reader(serialized_arg).map(|arg| EventSource::event(self, arg))
     }
     fn keyed_event(
-        &mut self,
+        &self,
         serialized_arg: &[u8],
     ) -> Result<(Action, ActionKey), DeserializationError> {
-        ciborium::from_reader(serialized_arg).map(|arg| self.keyed_event(arg))
+        ciborium::from_reader(serialized_arg).map(|arg| EventSource::keyed_event(self, arg))
     }
     fn periodic_event(
-        &mut self,
+        &self,
         period: Duration,
         serialized_arg: &[u8],
     ) -> Result<Action, DeserializationError> {
-        ciborium::from_reader(serialized_arg).map(|arg| self.periodic_event(period, arg))
+        ciborium::from_reader(serialized_arg)
+            .map(|arg| EventSource::periodic_event(self, period, arg))
     }
     fn keyed_periodic_event(
-        &mut self,
+        &self,
         period: Duration,
         serialized_arg: &[u8],
     ) -> Result<(Action, ActionKey), DeserializationError> {

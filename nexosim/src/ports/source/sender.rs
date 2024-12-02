@@ -14,12 +14,12 @@ use crate::ports::{InputFn, ReplierFn};
 pub(super) type SenderFuture<R> = Pin<Box<dyn Future<Output = Result<R, SendError>> + Send>>;
 
 /// An event or query sender abstracting over the target model and input method.
-pub(super) trait Sender<T, R>: Send {
+pub(super) trait Sender<T, R>: Send + Sync {
     /// Asynchronously sends a message using a reference to the message.
-    fn send(&mut self, arg: &T) -> Option<SenderFuture<R>>;
+    fn send(&self, arg: &T) -> Option<SenderFuture<R>>;
 
     /// Asynchronously sends an owned message.
-    fn send_owned(&mut self, arg: T) -> Option<SenderFuture<R>> {
+    fn send_owned(&self, arg: T) -> Option<SenderFuture<R>> {
         self.send(&arg)
     }
 }
@@ -52,15 +52,15 @@ where
 impl<M, F, T, S> Sender<T, ()> for InputSender<M, F, T, S>
 where
     M: Model,
-    F: for<'a> InputFn<'a, M, T, S> + Clone,
+    F: for<'a> InputFn<'a, M, T, S> + Clone + Sync,
     T: Clone + Send + 'static,
-    S: Send,
+    S: Send + Sync,
 {
-    fn send(&mut self, arg: &T) -> Option<SenderFuture<()>> {
+    fn send(&self, arg: &T) -> Option<SenderFuture<()>> {
         self.send_owned(arg.clone())
     }
 
-    fn send_owned(&mut self, arg: T) -> Option<SenderFuture<()>> {
+    fn send_owned(&self, arg: T) -> Option<SenderFuture<()>> {
         let func = self.func.clone();
         let sender = self.sender.clone();
 
@@ -108,13 +108,13 @@ where
 impl<M, C, F, T, U, S> Sender<T, ()> for MapInputSender<M, C, F, T, U, S>
 where
     M: Model,
-    C: Fn(&T) -> U + Send,
-    F: for<'a> InputFn<'a, M, U, S> + Clone,
+    C: Fn(&T) -> U + Send + Sync,
+    F: for<'a> InputFn<'a, M, U, S> + Clone + Sync,
     T: Send + 'static,
     U: Send + 'static,
-    S: Send,
+    S: Send + Sync,
 {
-    fn send(&mut self, arg: &T) -> Option<SenderFuture<()>> {
+    fn send(&self, arg: &T) -> Option<SenderFuture<()>> {
         let func = self.func.clone();
         let arg = (self.map)(arg);
         let sender = self.sender.clone();
@@ -163,13 +163,13 @@ where
 impl<M, C, F, T, U, S> Sender<T, ()> for FilterMapInputSender<M, C, F, T, U, S>
 where
     M: Model,
-    C: Fn(&T) -> Option<U> + Send,
-    F: for<'a> InputFn<'a, M, U, S> + Clone,
+    C: Fn(&T) -> Option<U> + Send + Sync,
+    F: for<'a> InputFn<'a, M, U, S> + Clone + Sync,
     T: Send + 'static,
     U: Send + 'static,
-    S: Send,
+    S: Send + Sync,
 {
-    fn send(&mut self, arg: &T) -> Option<SenderFuture<()>> {
+    fn send(&self, arg: &T) -> Option<SenderFuture<()>> {
         (self.filter_map)(arg).map(|arg| {
             let func = self.func.clone();
             let sender = self.sender.clone();
@@ -215,16 +215,16 @@ where
 impl<M, F, T, R, S> Sender<T, R> for ReplierSender<M, F, T, R, S>
 where
     M: Model,
-    F: for<'a> ReplierFn<'a, M, T, R, S> + Clone,
+    F: for<'a> ReplierFn<'a, M, T, R, S> + Clone + Sync,
     T: Clone + Send + 'static,
     R: Send + 'static,
-    S: Send,
+    S: Send + Sync,
 {
-    fn send(&mut self, arg: &T) -> Option<SenderFuture<R>> {
+    fn send(&self, arg: &T) -> Option<SenderFuture<R>> {
         self.send_owned(arg.clone())
     }
 
-    fn send_owned(&mut self, arg: T) -> Option<SenderFuture<R>> {
+    fn send_owned(&self, arg: T) -> Option<SenderFuture<R>> {
         let func = self.func.clone();
         let sender = self.sender.clone();
         let (reply_sender, reply_receiver) = oneshot::channel();
@@ -283,16 +283,16 @@ where
 impl<M, C, D, F, T, R, U, Q, S> Sender<T, R> for MapReplierSender<M, C, D, F, T, R, U, Q, S>
 where
     M: Model,
-    C: Fn(&T) -> U + Send,
+    C: Fn(&T) -> U + Send + Sync,
     D: Fn(Q) -> R + Send + Sync + 'static,
-    F: for<'a> ReplierFn<'a, M, U, Q, S> + Clone,
+    F: for<'a> ReplierFn<'a, M, U, Q, S> + Clone + Sync,
     T: Send + 'static,
     R: Send + 'static,
     U: Send + 'static,
     Q: Send + 'static,
-    S: Send,
+    S: Send + Sync,
 {
-    fn send(&mut self, arg: &T) -> Option<SenderFuture<R>> {
+    fn send(&self, arg: &T) -> Option<SenderFuture<R>> {
         let func = self.func.clone();
         let arg = (self.query_map)(arg);
         let sender = self.sender.clone();
@@ -358,16 +358,16 @@ where
 impl<M, C, D, F, T, R, U, Q, S> Sender<T, R> for FilterMapReplierSender<M, C, D, F, T, R, U, Q, S>
 where
     M: Model,
-    C: Fn(&T) -> Option<U> + Send,
+    C: Fn(&T) -> Option<U> + Send + Sync,
     D: Fn(Q) -> R + Send + Sync + 'static,
-    F: for<'a> ReplierFn<'a, M, U, Q, S> + Clone,
+    F: for<'a> ReplierFn<'a, M, U, Q, S> + Clone + Sync,
     T: Send + 'static,
     R: Send + 'static,
     U: Send + 'static,
     Q: Send + 'static,
-    S: Send,
+    S: Send + Sync,
 {
-    fn send(&mut self, arg: &T) -> Option<SenderFuture<R>> {
+    fn send(&self, arg: &T) -> Option<SenderFuture<R>> {
         (self.query_filter_map)(arg).map(|arg| {
             let func = self.func.clone();
             let sender = self.sender.clone();

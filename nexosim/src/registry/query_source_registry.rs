@@ -63,7 +63,7 @@ pub(crate) trait QuerySourceAny: Send + 'static {
     ///
     /// The argument is expected to conform to the serde CBOR encoding.
     fn query(
-        &mut self,
+        &self,
         arg: &[u8],
     ) -> Result<(Action, Box<dyn ReplyReceiverAny>), DeserializationError>;
 
@@ -82,7 +82,7 @@ where
     R: Serialize + Send + 'static,
 {
     fn query(
-        &mut self,
+        &self,
         arg: &[u8],
     ) -> Result<(Action, Box<dyn ReplyReceiverAny>), DeserializationError> {
         ciborium::from_reader(arg).map(|arg| {

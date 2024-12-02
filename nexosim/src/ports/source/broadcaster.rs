@@ -48,11 +48,11 @@ impl<T: Clone, R> BroadcasterInner<T, R> {
 
     /// Return a list of futures broadcasting an event or query to multiple
     /// addresses.
-    fn futures(&mut self, arg: T) -> Vec<SenderFutureState<R>> {
+    fn futures(&self, arg: T) -> Vec<SenderFutureState<R>> {
         let mut future_states = Vec::new();
 
         // Broadcast the message and collect all futures.
-        let mut iter = self.senders.iter_mut();
+        let mut iter = self.senders.iter();
         while let Some(sender) = iter.next() {
             // Move the argument for the last future to avoid undue cloning.
             if iter.len() == 0 {
@@ -107,17 +107,14 @@ impl<T: Clone + Send> EventBroadcaster<T> {
     }
 
     /// Broadcasts an event to all addresses.
-    pub(super) fn broadcast(
-        &mut self,
-        arg: T,
-    ) -> impl Future<Output = Result<(), SendError>> + Send {
+    pub(super) fn broadcast(&self, arg: T) -> impl Future<Output = Result<(), SendError>> + Send {
         enum Fut<F1, F2> {
             Empty,
             Single(F1),
             Multiple(F2),
         }
 
-        let fut = match self.inner.senders.as_mut_slice() {
+        let fut = match self.inner.senders.as_slice() {
             // No sender.
             [] => Fut::Empty,
             // One sender at most.
@@ -184,7 +181,7 @@ impl<T: Clone + Send, R: Send> QueryBroadcaster<T, R> {
 
     /// Broadcasts an event to all addresses.
     pub(super) fn broadcast(
-        &mut self,
+        &self,
         arg: T,
     ) -> impl Future<Output = Result<ReplyIterator<R>, SendError>> + Send {
         enum Fut<F1, F2> {
@@ -193,7 +190,7 @@ impl<T: Clone + Send, R: Send> QueryBroadcaster<T, R> {
             Multiple(F2),
         }
 
-        let fut = match self.inner.senders.as_mut_slice() {
+        let fut = match self.inner.senders.as_slice() {
             // No sender.
             [] => Fut::Empty,
             // One sender at most.
