@@ -3,4 +3,5 @@
 #![allow(missing_docs)]
 
 #[rustfmt::skip]
+#[path = "codegen/simulation.v1.rs"]
 pub(crate) mod simulation;

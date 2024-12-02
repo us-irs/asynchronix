@@ -1,7 +1,7 @@
 // The main simulation protocol.
 
 syntax = "proto3";
-package simulation;
+package simulation.v1;
 
 import "google/protobuf/duration.proto";
 import "google/protobuf/timestamp.proto";
