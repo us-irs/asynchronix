@@ -1,3 +1,5 @@
+use std::panic::{self, AssertUnwindSafe};
+
 use ciborium;
 use serde::de::DeserializeOwned;
 
@@ -16,8 +18,6 @@ type SimGen = Box<dyn FnMut(&[u8]) -> Result<InitResult, DeserializationError> +
 ///
 /// An `InitService` creates a new simulation bench based on a serialized
 /// initialization configuration.
-///
-/// It maps the `Init` method defined in `simulation.proto`.
 pub(crate) struct InitService {
     sim_gen: SimGen,
 }
@@ -51,17 +51,39 @@ impl InitService {
         &mut self,
         request: InitRequest,
     ) -> (InitReply, Option<(Simulation, Scheduler, EndpointRegistry)>) {
-        let reply = (self.sim_gen)(&request.cfg)
-            .map_err(|e| {
-                to_error(
-                    ErrorCode::InvalidMessage,
+        let reply = panic::catch_unwind(AssertUnwindSafe(|| (self.sim_gen)(&request.cfg)))
+            .map_err(|payload| {
+                let panic_msg: Option<&str> = if let Some(s) = payload.downcast_ref::<&str>() {
+                    Some(s)
+                } else if let Some(s) = payload.downcast_ref::<String>() {
+                    Some(s)
+                } else {
+                    None
+                };
+
+                let error_msg = if let Some(panic_msg) = panic_msg {
                     format!(
-                        "the initialization configuration could not be deserialized: {}",
-                        e
-                    ),
-                )
+                        "the simulation initializer has panicked with the message `{}`",
+                        panic_msg
+                    )
+                } else {
+                    String::from("the simulation initializer has panicked")
+                };
+
+                to_error(ErrorCode::InitializerPanic, error_msg)
             })
-            .and_then(|init_result| init_result.map_err(map_simulation_error));
+            .and_then(|res| {
+                res.map_err(|e| {
+                    to_error(
+                        ErrorCode::InvalidMessage,
+                        format!(
+                            "the initializer configuration could not be deserialized: {}",
+                            e
+                        ),
+                    )
+                })
+                .and_then(|init_result| init_result.map_err(map_simulation_error))
+            });
 
         let (reply, bench) = match reply {
             Ok((simulation, registry)) => {

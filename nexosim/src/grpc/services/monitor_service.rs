@@ -9,9 +9,6 @@ use super::{simulation_not_started_error, to_error};
 ///
 /// A `MonitorService` enables the monitoring of the event sinks of a
 /// [`Simulation`](crate::simulation::Simulation).
-///
-/// Its methods map the various RPC monitoring service methods defined in
-/// `simulation.proto`.
 pub(crate) enum MonitorService {
     Started {
         event_sink_registry: EventSinkRegistry,

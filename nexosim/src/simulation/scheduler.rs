@@ -33,6 +33,9 @@ impl Scheduler {
 
     /// Returns the current simulation time.
     ///
+    /// Beware that, if the scheduler runs in a separate thread as the
+    /// simulation, the time may change concurrently.
+    ///
     /// # Examples
     ///
     /// ```

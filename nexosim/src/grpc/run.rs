@@ -1,6 +1,7 @@
 //! gRPC simulation service.
 
 use std::net::SocketAddr;
+use std::sync::Arc;
 use std::sync::Mutex;
 use std::sync::MutexGuard;
 
@@ -13,7 +14,7 @@ use crate::simulation::{Simulation, SimulationError};
 use super::codegen::simulation::*;
 use super::key_registry::KeyRegistry;
 use super::services::InitService;
-use super::services::{ControllerService, MonitorService};
+use super::services::{ControllerService, MonitorService, SchedulerService};
 
 /// Runs a gRPC simulation server.
 ///
@@ -37,7 +38,8 @@ fn run_service(
     service: GrpcSimulationService,
     addr: SocketAddr,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    // Use 2 threads so that the controller and monitor services can be used
+    // Use 2 threads so that the even if the controller service is blocked due
+    // to ongoing simulation execution, other services can still be used
     // concurrently.
     let rt = tokio::runtime::Builder::new_multi_thread()
         .worker_threads(2)
@@ -58,6 +60,7 @@ struct GrpcSimulationService {
     init_service: Mutex<InitService>,
     controller_service: Mutex<ControllerService>,
     monitor_service: Mutex<MonitorService>,
+    scheduler_service: Mutex<SchedulerService>,
 }
 
 impl GrpcSimulationService {
@@ -76,6 +79,7 @@ impl GrpcSimulationService {
             init_service: Mutex::new(InitService::new(sim_gen)),
             controller_service: Mutex::new(ControllerService::NotStarted),
             monitor_service: Mutex::new(MonitorService::NotStarted),
+            scheduler_service: Mutex::new(SchedulerService::NotStarted),
         }
     }
 
@@ -93,6 +97,11 @@ impl GrpcSimulationService {
     fn monitor(&self) -> MutexGuard<'_, MonitorService> {
         self.monitor_service.lock().unwrap()
     }
+
+    /// Locks the scheduler and returns the mutex guard.
+    fn scheduler(&self) -> MutexGuard<'_, SchedulerService> {
+        self.scheduler_service.lock().unwrap()
+    }
 }
 
 #[tonic::async_trait]
@@ -103,15 +112,22 @@ impl simulation_server::Simulation for GrpcSimulationService {
         let (reply, bench) = self.initializer().init(request);
 
         if let Some((simulation, scheduler, endpoint_registry)) = bench {
+            let event_source_registry = Arc::new(endpoint_registry.event_source_registry);
+            let query_source_registry = endpoint_registry.query_source_registry;
+            let event_sink_registry = endpoint_registry.event_sink_registry;
+
             *self.controller() = ControllerService::Started {
                 simulation,
-                scheduler,
-                event_source_registry: endpoint_registry.event_source_registry,
-                query_source_registry: endpoint_registry.query_source_registry,
-                key_registry: KeyRegistry::default(),
+                event_source_registry: event_source_registry.clone(),
+                query_source_registry,
             };
             *self.monitor() = MonitorService::Started {
-                event_sink_registry: endpoint_registry.event_sink_registry,
+                event_sink_registry,
+            };
+            *self.scheduler() = SchedulerService::Started {
+                scheduler,
+                event_source_registry,
+                key_registry: KeyRegistry::default(),
             };
         }
 
@@ -120,7 +136,7 @@ impl simulation_server::Simulation for GrpcSimulationService {
     async fn time(&self, request: Request<TimeRequest>) -> Result<Response<TimeReply>, Status> {
         let request = request.into_inner();
 
-        Ok(Response::new(self.controller().time(request)))
+        Ok(Response::new(self.scheduler().time(request)))
     }
     async fn step(&self, request: Request<StepRequest>) -> Result<Response<StepReply>, Status> {
         let request = request.into_inner();
@@ -141,7 +157,7 @@ impl simulation_server::Simulation for GrpcSimulationService {
     ) -> Result<Response<ScheduleEventReply>, Status> {
         let request = request.into_inner();
 
-        Ok(Response::new(self.controller().schedule_event(request)))
+        Ok(Response::new(self.scheduler().schedule_event(request)))
     }
     async fn cancel_event(
         &self,
@@ -149,7 +165,7 @@ impl simulation_server::Simulation for GrpcSimulationService {
     ) -> Result<Response<CancelEventReply>, Status> {
         let request = request.into_inner();
 
-        Ok(Response::new(self.controller().cancel_event(request)))
+        Ok(Response::new(self.scheduler().cancel_event(request)))
     }
     async fn process_event(
         &self,

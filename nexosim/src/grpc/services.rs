@@ -1,6 +1,7 @@
 mod controller_service;
 mod init_service;
 mod monitor_service;
+mod scheduler_service;
 
 use std::time::Duration;
 
@@ -13,6 +14,7 @@ use crate::simulation::{ExecutionError, SchedulingError, SimulationError};
 pub(crate) use controller_service::ControllerService;
 pub(crate) use init_service::InitService;
 pub(crate) use monitor_service::MonitorService;
+pub(crate) use scheduler_service::SchedulerService;
 
 /// Transforms an error code and a message into a Protobuf error.
 fn to_error(code: ErrorCode, message: impl Into<String>) -> Error {

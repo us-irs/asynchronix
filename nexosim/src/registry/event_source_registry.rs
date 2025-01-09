@@ -42,8 +42,8 @@ impl EventSourceRegistry {
 
     /// Returns a mutable reference to the specified event source if it is in
     /// the registry.
-    pub(crate) fn get_mut(&mut self, name: &str) -> Option<&mut dyn EventSourceAny> {
-        self.0.get_mut(name).map(|s| s.as_mut())
+    pub(crate) fn get(&self, name: &str) -> Option<&dyn EventSourceAny> {
+        self.0.get(name).map(|s| s.as_ref())
     }
 }
 
@@ -54,7 +54,7 @@ impl fmt::Debug for EventSourceRegistry {
 }
 
 /// A type-erased `EventSource` that operates on CBOR-encoded serialized events.
-pub(crate) trait EventSourceAny: Send + 'static {
+pub(crate) trait EventSourceAny: Send + Sync + 'static {
     /// Returns an action which, when processed, broadcasts an event to all
     /// connected input ports.
     ///

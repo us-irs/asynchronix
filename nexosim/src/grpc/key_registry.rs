@@ -13,8 +13,8 @@ pub(crate) struct KeyRegistry {
 impl KeyRegistry {
     /// Inserts an `ActionKey` into the registry.
     ///
-    /// The provided expiration deadline is the latest time at which the key may
-    /// still be active.
+    /// The provided expiration deadline is the latest time at which the key is
+    /// guaranteed to be extractable.
     pub(crate) fn insert_key(
         &mut self,
         action_key: ActionKey,

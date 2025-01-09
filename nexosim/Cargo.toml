@@ -20,11 +20,27 @@ description = """
 A high performance asychronous compute framework for system simulation.
 """
 categories = ["simulation", "aerospace", "science"]
-keywords = ["simulation", "discrete-event", "systems", "cyberphysical", "real-time"]
+keywords = [
+    "simulation",
+    "discrete-event",
+    "systems",
+    "cyberphysical",
+    "real-time",
+]
 
 [features]
 # gRPC service.
-grpc = ["dep:bytes", "dep:ciborium", "dep:prost", "dep:prost-types", "dep:serde", "dep:tonic", "dep:tokio", "dep:tonic"]
+grpc = [
+    "dep:bytes",
+    "dep:ciborium",
+    "dep:prost",
+    "dep:prost-types",
+    "dep:serde",
+    "dep:tonic",
+    "dep:tokio",
+    "dep:tonic",
+    "tai-time/serde",
+]
 tracing = ["dep:tracing", "dep:tracing-subscriber"]
 
 # DEVELOPMENT ONLY: API-unstable public exports meant for external test/benchmarking.
@@ -54,15 +70,24 @@ ciborium = { version = "0.2.2", optional = true }
 prost = { version = "0.13", optional = true }
 prost-types = { version = "0.13", optional = true }
 serde = { version = "1", optional = true }
-tokio = { version = "1.0", features=["net", "rt-multi-thread"], optional = true }
-tonic = { version = "0.12", default-features = false, features=["codegen", "prost", "server"], optional = true }
-tracing = { version= "0.1.40", default-features = false, features=["std"], optional = true }
-tracing-subscriber = { version= "0.3.18", optional = true }
+tokio = { version = "1.0", features = [
+    "net",
+    "rt-multi-thread",
+], optional = true }
+tonic = { version = "0.12", default-features = false, features = [
+    "codegen",
+    "prost",
+    "server",
+], optional = true }
+tracing = { version = "0.1.40", default-features = false, features = [
+    "std",
+], optional = true }
+tracing-subscriber = { version = "0.3.18", optional = true }
 
 [dev-dependencies]
 futures-util = "0.3"
 futures-executor = "0.3"
-tracing-subscriber = { version= "0.3.18", features=["env-filter"] }
+tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
 
 [target.'cfg(nexosim_loom)'.dev-dependencies]
 loom = "0.7"
@@ -74,7 +99,10 @@ tonic-build = { version = "0.12" }
 [lints.rust]
 # `nexosim_loom` flag: run loom-based tests.
 # `nexosim_grpc_codegen` flag: regenerate gRPC code from .proto definitions.
-unexpected_cfgs = { level = "warn", check-cfg = ['cfg(nexosim_loom)', 'cfg(nexosim_grpc_codegen)'] }
+unexpected_cfgs = { level = "warn", check-cfg = [
+    'cfg(nexosim_loom)',
+    'cfg(nexosim_grpc_codegen)',
+] }
 
 [package.metadata.docs.rs]
 all-features = true

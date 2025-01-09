@@ -728,6 +728,8 @@ mod tests {
 
 #[cfg(all(test, nexosim_loom))]
 mod tests {
+    use std::sync::Mutex;
+
     use futures_channel::mpsc;
     use futures_util::StreamExt;
 
@@ -743,14 +745,14 @@ mod tests {
     struct TestEvent<R> {
         // The receiver is actually used only once in tests, so it is moved out
         // of the `Option` on first use.
-        receiver: Option<mpsc::UnboundedReceiver<Option<R>>>,
+        receiver: Mutex<Option<mpsc::UnboundedReceiver<Option<R>>>>,
     }
     impl<R: Send + 'static> Sender<(), R> for TestEvent<R> {
         fn send(
-            &mut self,
+            &self,
             _arg: &(),
         ) -> Option<Pin<Box<dyn Future<Output = Result<R, SendError>> + Send>>> {
-            let receiver = self.receiver.take().unwrap();
+            let receiver = self.receiver.lock().unwrap().take().unwrap();
 
             Some(Box::pin(async move {
                 let mut stream = Box::pin(receiver.filter_map(|item| async { item }));
@@ -779,7 +781,7 @@ mod tests {
 
         (
             TestEvent {
-                receiver: Some(receiver),
+                receiver: Mutex::new(Some(receiver)),
             },
             TestEventWaker { sender },
         )
