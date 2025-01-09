@@ -16,6 +16,18 @@ pub trait Clock: Send {
     fn synchronize(&mut self, deadline: MonotonicTime) -> SyncStatus;
 }
 
+impl<C: Clock + ?Sized> Clock for &mut C {
+    fn synchronize(&mut self, deadline: MonotonicTime) -> SyncStatus {
+        (**self).synchronize(deadline)
+    }
+}
+
+impl<C: Clock + ?Sized> Clock for Box<C> {
+    fn synchronize(&mut self, deadline: MonotonicTime) -> SyncStatus {
+        (**self).synchronize(deadline)
+    }
+}
+
 /// The current synchronization status of a clock.
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 pub enum SyncStatus {
