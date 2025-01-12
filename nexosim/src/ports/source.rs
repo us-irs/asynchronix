@@ -2,7 +2,7 @@ mod broadcaster;
 mod sender;
 
 use std::fmt;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 use std::time::Duration;
 
 use crate::model::Model;
@@ -28,7 +28,7 @@ use super::ReplierFn;
 /// however, to be instantiated as a member of a model, but rather as a
 /// simulation control endpoint instantiated during bench assembly.
 pub struct EventSource<T: Clone + Send + 'static> {
-    broadcaster: Arc<Mutex<EventBroadcaster<T>>>,
+    broadcaster: EventBroadcaster<T>,
 }
 
 impl<T: Clone + Send + 'static> EventSource<T> {
@@ -46,11 +46,11 @@ impl<T: Clone + Send + 'static> EventSource<T> {
     pub fn connect<M, F, S>(&mut self, input: F, address: impl Into<Address<M>>)
     where
         M: Model,
-        F: for<'a> InputFn<'a, M, T, S> + Clone,
-        S: Send + 'static,
+        F: for<'a> InputFn<'a, M, T, S> + Clone + Sync,
+        S: Send + Sync + 'static,
     {
         let sender = Box::new(InputSender::new(input, address.into().0));
-        self.broadcaster.lock().unwrap().add(sender);
+        self.broadcaster.add(sender);
     }
 
     /// Adds an auto-converting connection to an input port of the model
@@ -65,13 +65,13 @@ impl<T: Clone + Send + 'static> EventSource<T> {
     pub fn map_connect<M, C, F, U, S>(&mut self, map: C, input: F, address: impl Into<Address<M>>)
     where
         M: Model,
-        C: for<'a> Fn(&'a T) -> U + Send + 'static,
-        F: for<'a> InputFn<'a, M, U, S> + Clone,
+        C: for<'a> Fn(&'a T) -> U + Send + Sync + 'static,
+        F: for<'a> InputFn<'a, M, U, S> + Sync + Clone,
         U: Send + 'static,
-        S: Send + 'static,
+        S: Send + Sync + 'static,
     {
         let sender = Box::new(MapInputSender::new(map, input, address.into().0));
-        self.broadcaster.lock().unwrap().add(sender);
+        self.broadcaster.add(sender);
     }
 
     /// Adds an auto-converting, filtered connection to an input port of the
@@ -90,22 +90,19 @@ impl<T: Clone + Send + 'static> EventSource<T> {
         address: impl Into<Address<M>>,
     ) where
         M: Model,
-        C: for<'a> Fn(&'a T) -> Option<U> + Send + 'static,
-        F: for<'a> InputFn<'a, M, U, S> + Clone,
+        C: for<'a> Fn(&'a T) -> Option<U> + Send + Sync + 'static,
+        F: for<'a> InputFn<'a, M, U, S> + Clone + Sync,
         U: Send + 'static,
-        S: Send + 'static,
+        S: Send + Sync + 'static,
     {
         let sender = Box::new(FilterMapInputSender::new(map, input, address.into().0));
-        self.broadcaster.lock().unwrap().add(sender);
+        self.broadcaster.add(sender);
     }
 
     /// Returns an action which, when processed, broadcasts an event to all
     /// connected input ports.
-    ///
-    /// Note that the action broadcasts the event to those models that are
-    /// connected to the event source at the time the action is processed.
-    pub fn event(&mut self, arg: T) -> Action {
-        let fut = self.broadcaster.lock().unwrap().broadcast(arg);
+    pub fn event(&self, arg: T) -> Action {
+        let fut = self.broadcaster.broadcast(arg);
         let fut = async {
             fut.await.unwrap_or_throw();
         };
@@ -115,12 +112,9 @@ impl<T: Clone + Send + 'static> EventSource<T> {
 
     /// Returns a cancellable action and a cancellation key; when processed, the
     /// action broadcasts an event to all connected input ports.
-    ///
-    /// Note that the action broadcasts the event to those models that are
-    /// connected to the event source at the time the action is processed.
-    pub fn keyed_event(&mut self, arg: T) -> (Action, ActionKey) {
+    pub fn keyed_event(&self, arg: T) -> (Action, ActionKey) {
         let action_key = ActionKey::new();
-        let fut = self.broadcaster.lock().unwrap().broadcast(arg);
+        let fut = self.broadcaster.broadcast(arg);
 
         let action = Action::new(KeyedOnceAction::new(
             // Cancellation is ignored once the action is already spawned on the
@@ -139,15 +133,12 @@ impl<T: Clone + Send + 'static> EventSource<T> {
 
     /// Returns a periodically recurring action which, when processed,
     /// broadcasts an event to all connected input ports.
-    ///
-    /// Note that the action broadcasts the event to those models that are
-    /// connected to the event source at the time the action is processed.
-    pub fn periodic_event(&mut self, period: Duration, arg: T) -> Action {
-        let broadcaster = self.broadcaster.clone();
+    pub fn periodic_event(self: &Arc<Self>, period: Duration, arg: T) -> Action {
+        let source = self.clone();
 
         Action::new(PeriodicAction::new(
             || async move {
-                let fut = broadcaster.lock().unwrap().broadcast(arg);
+                let fut = source.broadcaster.broadcast(arg);
                 fut.await.unwrap_or_throw();
             },
             period,
@@ -157,12 +148,9 @@ impl<T: Clone + Send + 'static> EventSource<T> {
     /// Returns a cancellable, periodically recurring action and a cancellation
     /// key; when processed, the action broadcasts an event to all connected
     /// input ports.
-    ///
-    /// Note that the action broadcasts the event to those models that are
-    /// connected to the event source at the time the action is processed.
-    pub fn keyed_periodic_event(&mut self, period: Duration, arg: T) -> (Action, ActionKey) {
+    pub fn keyed_periodic_event(self: &Arc<Self>, period: Duration, arg: T) -> (Action, ActionKey) {
         let action_key = ActionKey::new();
-        let broadcaster = self.broadcaster.clone();
+        let source = self.clone();
 
         let action = Action::new(KeyedPeriodicAction::new(
             // Cancellation is ignored once the action is already spawned on the
@@ -171,7 +159,7 @@ impl<T: Clone + Send + 'static> EventSource<T> {
             // used outside the simulator, this shouldn't be an issue in
             // practice.
             |_| async move {
-                let fut = broadcaster.lock().unwrap().broadcast(arg);
+                let fut = source.broadcaster.broadcast(arg);
                 fut.await.unwrap_or_throw();
             },
             period,
@@ -185,7 +173,7 @@ impl<T: Clone + Send + 'static> EventSource<T> {
 impl<T: Clone + Send + 'static> Default for EventSource<T> {
     fn default() -> Self {
         Self {
-            broadcaster: Arc::new(Mutex::new(EventBroadcaster::default())),
+            broadcaster: EventBroadcaster::default(),
         }
     }
 }
@@ -195,7 +183,7 @@ impl<T: Clone + Send + 'static> fmt::Debug for EventSource<T> {
         write!(
             f,
             "Event source ({} connected ports)",
-            self.broadcaster.lock().unwrap().len()
+            self.broadcaster.len()
         )
     }
 }
@@ -208,7 +196,7 @@ impl<T: Clone + Send + 'static> fmt::Debug for EventSource<T> {
 /// member of a model, but rather as a simulation monitoring endpoint
 /// instantiated during bench assembly.
 pub struct QuerySource<T: Clone + Send + 'static, R: Send + 'static> {
-    broadcaster: Arc<Mutex<QueryBroadcaster<T, R>>>,
+    broadcaster: QueryBroadcaster<T, R>,
 }
 
 impl<T: Clone + Send + 'static, R: Send + 'static> QuerySource<T, R> {
@@ -226,11 +214,11 @@ impl<T: Clone + Send + 'static, R: Send + 'static> QuerySource<T, R> {
     pub fn connect<M, F, S>(&mut self, replier: F, address: impl Into<Address<M>>)
     where
         M: Model,
-        F: for<'a> ReplierFn<'a, M, T, R, S> + Clone,
-        S: Send + 'static,
+        F: for<'a> ReplierFn<'a, M, T, R, S> + Clone + Sync,
+        S: Send + Sync + 'static,
     {
         let sender = Box::new(ReplierSender::new(replier, address.into().0));
-        self.broadcaster.lock().unwrap().add(sender);
+        self.broadcaster.add(sender);
     }
 
     /// Adds an auto-converting connection to a replier port of the model
@@ -251,12 +239,12 @@ impl<T: Clone + Send + 'static, R: Send + 'static> QuerySource<T, R> {
         address: impl Into<Address<M>>,
     ) where
         M: Model,
-        C: for<'a> Fn(&'a T) -> U + Send + 'static,
+        C: for<'a> Fn(&'a T) -> U + Send + Sync + 'static,
         D: Fn(Q) -> R + Send + Sync + 'static,
-        F: for<'a> ReplierFn<'a, M, U, Q, S> + Clone,
+        F: for<'a> ReplierFn<'a, M, U, Q, S> + Clone + Sync,
         U: Send + 'static,
         Q: Send + 'static,
-        S: Send + 'static,
+        S: Send + Sync + 'static,
     {
         let sender = Box::new(MapReplierSender::new(
             query_map,
@@ -264,7 +252,7 @@ impl<T: Clone + Send + 'static, R: Send + 'static> QuerySource<T, R> {
             replier,
             address.into().0,
         ));
-        self.broadcaster.lock().unwrap().add(sender);
+        self.broadcaster.add(sender);
     }
 
     /// Adds an auto-converting, filtered connection to a replier port of the
@@ -285,12 +273,12 @@ impl<T: Clone + Send + 'static, R: Send + 'static> QuerySource<T, R> {
         address: impl Into<Address<M>>,
     ) where
         M: Model,
-        C: for<'a> Fn(&'a T) -> Option<U> + Send + 'static,
+        C: for<'a> Fn(&'a T) -> Option<U> + Send + Sync + 'static,
         D: Fn(Q) -> R + Send + Sync + 'static,
-        F: for<'a> ReplierFn<'a, M, U, Q, S> + Clone,
+        F: for<'a> ReplierFn<'a, M, U, Q, S> + Clone + Sync,
         U: Send + 'static,
         Q: Send + 'static,
-        S: Send + 'static,
+        S: Send + Sync + 'static,
     {
         let sender = Box::new(FilterMapReplierSender::new(
             query_filter_map,
@@ -298,17 +286,14 @@ impl<T: Clone + Send + 'static, R: Send + 'static> QuerySource<T, R> {
             replier,
             address.into().0,
         ));
-        self.broadcaster.lock().unwrap().add(sender);
+        self.broadcaster.add(sender);
     }
 
     /// Returns an action which, when processed, broadcasts a query to all
     /// connected replier ports.
-    ///
-    /// Note that the action broadcasts the query to those models that are
-    /// connected to the query source at the time the action is processed.
-    pub fn query(&mut self, arg: T) -> (Action, ReplyReceiver<R>) {
+    pub fn query(&self, arg: T) -> (Action, ReplyReceiver<R>) {
         let (writer, reader) = slot::slot();
-        let fut = self.broadcaster.lock().unwrap().broadcast(arg);
+        let fut = self.broadcaster.broadcast(arg);
         let fut = async move {
             let replies = fut.await.unwrap_or_throw();
             let _ = writer.write(replies);
@@ -323,7 +308,7 @@ impl<T: Clone + Send + 'static, R: Send + 'static> QuerySource<T, R> {
 impl<T: Clone + Send + 'static, R: Send + 'static> Default for QuerySource<T, R> {
     fn default() -> Self {
         Self {
-            broadcaster: Arc::new(Mutex::new(QueryBroadcaster::default())),
+            broadcaster: QueryBroadcaster::default(),
         }
     }
 }
@@ -333,7 +318,7 @@ impl<T: Clone + Send + 'static, R: Send + 'static> fmt::Debug for QuerySource<T,
         write!(
             f,
             "Query source ({} connected ports)",
-            self.broadcaster.lock().unwrap().len()
+            self.broadcaster.len()
         )
     }
 }

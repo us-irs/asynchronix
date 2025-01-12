@@ -43,8 +43,8 @@ impl QuerySourceRegistry {
 
     /// Returns a mutable reference to the specified query source if it is in
     /// the registry.
-    pub(crate) fn get_mut(&mut self, name: &str) -> Option<&mut dyn QuerySourceAny> {
-        self.0.get_mut(name).map(|s| s.as_mut())
+    pub(crate) fn get(&self, name: &str) -> Option<&dyn QuerySourceAny> {
+        self.0.get(name).map(|s| s.as_ref())
     }
 }
 
@@ -56,14 +56,14 @@ impl fmt::Debug for QuerySourceRegistry {
 
 /// A type-erased `QuerySource` that operates on CBOR-encoded serialized queries
 /// and returns CBOR-encoded replies.
-pub(crate) trait QuerySourceAny: Send + 'static {
+pub(crate) trait QuerySourceAny: Send + Sync + 'static {
     /// Returns an action which, when processed, broadcasts a query to all
     /// connected replier ports.
     ///
     ///
     /// The argument is expected to conform to the serde CBOR encoding.
     fn query(
-        &mut self,
+        &self,
         arg: &[u8],
     ) -> Result<(Action, Box<dyn ReplyReceiverAny>), DeserializationError>;
 
@@ -82,7 +82,7 @@ where
     R: Serialize + Send + 'static,
 {
     fn query(
-        &mut self,
+        &self,
         arg: &[u8],
     ) -> Result<(Action, Box<dyn ReplyReceiverAny>), DeserializationError> {
         ciborium::from_reader(arg).map(|arg| {

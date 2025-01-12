@@ -9,8 +9,8 @@ use crate::ports::EventSinkStream;
 
 type SerializationError = ciborium::ser::Error<std::io::Error>;
 
-/// A registry that holds all sources and sinks meant to be accessed through
-/// remote procedure calls.
+/// A registry that holds all sinks meant to be accessed through remote
+/// procedure calls.
 #[derive(Default)]
 pub(crate) struct EventSinkRegistry(HashMap<String, Box<dyn EventSinkStreamAny>>);
 

@@ -48,11 +48,11 @@ impl<T: Clone, R> BroadcasterInner<T, R> {
 
     /// Return a list of futures broadcasting an event or query to multiple
     /// addresses.
-    fn futures(&mut self, arg: T) -> Vec<SenderFutureState<R>> {
+    fn futures(&self, arg: T) -> Vec<SenderFutureState<R>> {
         let mut future_states = Vec::new();
 
         // Broadcast the message and collect all futures.
-        let mut iter = self.senders.iter_mut();
+        let mut iter = self.senders.iter();
         while let Some(sender) = iter.next() {
             // Move the argument for the last future to avoid undue cloning.
             if iter.len() == 0 {
@@ -107,17 +107,14 @@ impl<T: Clone + Send> EventBroadcaster<T> {
     }
 
     /// Broadcasts an event to all addresses.
-    pub(super) fn broadcast(
-        &mut self,
-        arg: T,
-    ) -> impl Future<Output = Result<(), SendError>> + Send {
+    pub(super) fn broadcast(&self, arg: T) -> impl Future<Output = Result<(), SendError>> + Send {
         enum Fut<F1, F2> {
             Empty,
             Single(F1),
             Multiple(F2),
         }
 
-        let fut = match self.inner.senders.as_mut_slice() {
+        let fut = match self.inner.senders.as_slice() {
             // No sender.
             [] => Fut::Empty,
             // One sender at most.
@@ -184,7 +181,7 @@ impl<T: Clone + Send, R: Send> QueryBroadcaster<T, R> {
 
     /// Broadcasts an event to all addresses.
     pub(super) fn broadcast(
-        &mut self,
+        &self,
         arg: T,
     ) -> impl Future<Output = Result<ReplyIterator<R>, SendError>> + Send {
         enum Fut<F1, F2> {
@@ -193,7 +190,7 @@ impl<T: Clone + Send, R: Send> QueryBroadcaster<T, R> {
             Multiple(F2),
         }
 
-        let fut = match self.inner.senders.as_mut_slice() {
+        let fut = match self.inner.senders.as_slice() {
             // No sender.
             [] => Fut::Empty,
             // One sender at most.
@@ -731,6 +728,8 @@ mod tests {
 
 #[cfg(all(test, nexosim_loom))]
 mod tests {
+    use std::sync::Mutex;
+
     use futures_channel::mpsc;
     use futures_util::StreamExt;
 
@@ -746,14 +745,14 @@ mod tests {
     struct TestEvent<R> {
         // The receiver is actually used only once in tests, so it is moved out
         // of the `Option` on first use.
-        receiver: Option<mpsc::UnboundedReceiver<Option<R>>>,
+        receiver: Mutex<Option<mpsc::UnboundedReceiver<Option<R>>>>,
     }
     impl<R: Send + 'static> Sender<(), R> for TestEvent<R> {
         fn send(
-            &mut self,
+            &self,
             _arg: &(),
         ) -> Option<Pin<Box<dyn Future<Output = Result<R, SendError>> + Send>>> {
-            let receiver = self.receiver.take().unwrap();
+            let receiver = self.receiver.lock().unwrap().take().unwrap();
 
             Some(Box::pin(async move {
                 let mut stream = Box::pin(receiver.filter_map(|item| async { item }));
@@ -782,7 +781,7 @@ mod tests {
 
         (
             TestEvent {
-                receiver: Some(receiver),
+                receiver: Mutex::new(Some(receiver)),
             },
             TestEventWaker { sender },
         )
