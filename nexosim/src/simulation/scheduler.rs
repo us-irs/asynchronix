@@ -27,8 +27,12 @@ const GLOBAL_SCHEDULER_ORIGIN_ID: usize = 0;
 pub struct Scheduler(GlobalScheduler);
 
 impl Scheduler {
-    pub(crate) fn new(scheduler_queue: Arc<Mutex<SchedulerQueue>>, time: AtomicTimeReader) -> Self {
-        Self(GlobalScheduler::new(scheduler_queue, time))
+    pub(crate) fn new(
+        scheduler_queue: Arc<Mutex<SchedulerQueue>>,
+        time: AtomicTimeReader,
+        is_halted: Arc<AtomicBool>,
+    ) -> Self {
+        Self(GlobalScheduler::new(scheduler_queue, time, is_halted))
     }
 
     /// Returns the current simulation time.
@@ -174,6 +178,11 @@ impl Scheduler {
             address,
             GLOBAL_SCHEDULER_ORIGIN_ID,
         )
+    }
+
+    /// Stops the simulation on the next step.
+    pub fn halt(&mut self) {
+        self.0.halt()
     }
 }
 
@@ -341,13 +350,19 @@ pub(crate) type SchedulerQueue = PriorityQueue<(MonotonicTime, usize), Action>;
 pub(crate) struct GlobalScheduler {
     scheduler_queue: Arc<Mutex<SchedulerQueue>>,
     time: AtomicTimeReader,
+    is_halted: Arc<AtomicBool>,
 }
 
 impl GlobalScheduler {
-    pub(crate) fn new(scheduler_queue: Arc<Mutex<SchedulerQueue>>, time: AtomicTimeReader) -> Self {
+    pub(crate) fn new(
+        scheduler_queue: Arc<Mutex<SchedulerQueue>>,
+        time: AtomicTimeReader,
+        is_halted: Arc<AtomicBool>,
+    ) -> Self {
         Self {
             scheduler_queue,
             time,
+            is_halted,
         }
     }
 
@@ -537,6 +552,11 @@ impl GlobalScheduler {
         scheduler_queue.insert((time, origin_id), action);
 
         Ok(event_key)
+    }
+
+    /// Stops the simulation on the next step.
+    pub(crate) fn halt(&mut self) {
+        self.is_halted.store(true, Ordering::Relaxed);
     }
 }
 

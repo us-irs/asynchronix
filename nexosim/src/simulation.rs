@@ -94,6 +94,7 @@ use std::error::Error;
 use std::fmt;
 use std::future::Future;
 use std::pin::Pin;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex, MutexGuard};
 use std::task::Poll;
 use std::time::Duration;
@@ -160,6 +161,7 @@ pub struct Simulation {
     timeout: Duration,
     observers: Vec<(String, Box<dyn ChannelObserver>)>,
     model_names: Vec<String>,
+    is_halted: Arc<AtomicBool>,
     is_terminated: bool,
 }
 
@@ -175,6 +177,7 @@ impl Simulation {
         timeout: Duration,
         observers: Vec<(String, Box<dyn ChannelObserver>)>,
         model_names: Vec<String>,
+        is_halted: Arc<AtomicBool>,
     ) -> Self {
         Self {
             executor,
@@ -185,6 +188,7 @@ impl Simulation {
             timeout,
             observers,
             model_names,
+            is_halted,
             is_terminated: false,
         }
     }
@@ -328,6 +332,12 @@ impl Simulation {
 
     /// Runs the executor.
     fn run(&mut self) -> Result<(), ExecutionError> {
+        // Defensive programming, shouldn't happen
+        if self.is_halted.load(Ordering::Relaxed) {
+            return Err(ExecutionError::Terminated);
+        }
+
+        // Defensive programming, shouldn't happen
         if self.is_terminated {
             return Err(ExecutionError::Terminated);
         }
@@ -386,6 +396,14 @@ impl Simulation {
         &mut self,
         upper_time_bound: MonotonicTime,
     ) -> Result<Option<MonotonicTime>, ExecutionError> {
+        if self.is_halted.load(Ordering::Relaxed) {
+            return Err(ExecutionError::Terminated);
+        }
+
+        if self.is_terminated {
+            return Err(ExecutionError::Terminated);
+        }
+
         // Function pulling the next action. If the action is periodic, it is
         // immediately re-scheduled.
         fn pull_next_action(scheduler_queue: &mut MutexGuard<SchedulerQueue>) -> Action {
@@ -506,7 +524,11 @@ impl Simulation {
     /// Returns a scheduler handle.
     #[cfg(feature = "grpc")]
     pub(crate) fn scheduler(&self) -> Scheduler {
-        Scheduler::new(self.scheduler_queue.clone(), self.time.reader())
+        Scheduler::new(
+            self.scheduler_queue.clone(),
+            self.time.reader(),
+            self.is_halted.clone(),
+        )
     }
 }
 
@@ -533,6 +555,8 @@ pub struct DeadlockInfo {
 /// An error returned upon simulation execution failure.
 #[derive(Debug)]
 pub enum ExecutionError {
+    /// The simulation has been intentionally stopped.
+    Halted,
     /// The simulation has been terminated due to an earlier deadlock, message
     /// loss, missing recipient, model panic, timeout or synchronization loss.
     Terminated,
@@ -613,6 +637,7 @@ pub enum ExecutionError {
 impl fmt::Display for ExecutionError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
+            Self::Halted => f.write_str("the simulation has been intentionally stopped"),
             Self::Terminated => f.write_str("the simulation has been terminated"),
             Self::Deadlock(list) => {
                 f.write_str(

@@ -398,7 +398,7 @@ impl<R> Iterator for ReplyIterator<R> {
 
 #[cfg(all(test, not(nexosim_loom)))]
 mod tests {
-    use std::sync::atomic::{AtomicUsize, Ordering};
+    use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
     use std::sync::{Arc, Mutex};
     use std::thread;
 
@@ -473,9 +473,10 @@ mod tests {
                         let dummy_priority_queue = Arc::new(Mutex::new(PriorityQueue::new()));
                         let dummy_time =
                             SyncCell::new(TearableAtomicTime::new(MonotonicTime::EPOCH)).reader();
+                        let dummy_halter = Arc::new(AtomicBool::new(false));
                         let mut dummy_cx = Context::new(
                             String::new(),
-                            GlobalScheduler::new(dummy_priority_queue, dummy_time),
+                            GlobalScheduler::new(dummy_priority_queue, dummy_time, dummy_halter),
                             Address(dummy_address),
                         );
                         block_on(mailbox.recv(&mut sum_model, &mut dummy_cx)).unwrap();
@@ -543,9 +544,10 @@ mod tests {
                         let dummy_priority_queue = Arc::new(Mutex::new(PriorityQueue::new()));
                         let dummy_time =
                             SyncCell::new(TearableAtomicTime::new(MonotonicTime::EPOCH)).reader();
+                        let dummy_halter = Arc::new(AtomicBool::new(false));
                         let mut dummy_cx = Context::new(
                             String::new(),
-                            GlobalScheduler::new(dummy_priority_queue, dummy_time),
+                            GlobalScheduler::new(dummy_priority_queue, dummy_time, dummy_halter),
                             Address(dummy_address),
                         );
                         block_on(async {
@@ -603,9 +605,10 @@ mod tests {
                         let dummy_priority_queue = Arc::new(Mutex::new(PriorityQueue::new()));
                         let dummy_time =
                             SyncCell::new(TearableAtomicTime::new(MonotonicTime::EPOCH)).reader();
+                        let dummy_halter = Arc::new(AtomicBool::new(false));
                         let mut dummy_cx = Context::new(
                             String::new(),
-                            GlobalScheduler::new(dummy_priority_queue, dummy_time),
+                            GlobalScheduler::new(dummy_priority_queue, dummy_time, dummy_halter),
                             Address(dummy_address),
                         );
                         block_on(mailbox.recv(&mut double_model, &mut dummy_cx)).unwrap();
@@ -688,9 +691,10 @@ mod tests {
                         let dummy_priority_queue = Arc::new(Mutex::new(PriorityQueue::new()));
                         let dummy_time =
                             SyncCell::new(TearableAtomicTime::new(MonotonicTime::EPOCH)).reader();
+                        let dummy_halter = Arc::new(AtomicBool::new(false));
                         let mut dummy_cx = Context::new(
                             String::new(),
-                            GlobalScheduler::new(dummy_priority_queue, dummy_time),
+                            GlobalScheduler::new(dummy_priority_queue, dummy_time, dummy_halter),
                             Address(dummy_address),
                         );
 
