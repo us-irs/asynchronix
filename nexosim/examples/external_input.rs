@@ -148,9 +148,9 @@ impl Model for Listener {
 impl Drop for Listener {
     /// Wait for UDP Server shutdown.
     fn drop(&mut self) {
-        self.server_handle.take().map(|handle| {
+        if let Some(handle) = self.server_handle.take() {
             let _ = handle.join();
-        });
+        };
     }
 }
 

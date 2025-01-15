@@ -220,7 +220,7 @@ impl Simulation {
     /// simulation clock. This method blocks until all newly processed events
     /// have completed.
     pub fn step(&mut self) -> Result<(), ExecutionError> {
-        self.step_to_next_bounded(MonotonicTime::MAX).map(|_| ())
+        self.step_to_next(None).map(|_| ())
     }
 
     /// Iteratively advances the simulation time until the specified deadline,
@@ -236,7 +236,19 @@ impl Simulation {
         if target_time < now {
             return Err(ExecutionError::InvalidDeadline(target_time));
         }
-        self.step_until_unchecked(target_time)
+        self.step_until_unchecked(Some(target_time))
+    }
+
+    /// Iteratively advances the simulation time, as if by calling
+    /// [`Simulation::step()`] repeatedly.
+    ///
+    /// This method blocks until all events scheduled have completed. If
+    /// simulation is halted, this method returns without an error.
+    pub fn step_forever(&mut self) -> Result<(), ExecutionError> {
+        match self.step_until_unchecked(None) {
+            Err(ExecutionError::Halted) => Ok(()),
+            result => result,
+        }
     }
 
     /// Processes an action immediately, blocking until completion.
@@ -333,8 +345,9 @@ impl Simulation {
     /// Runs the executor.
     fn run(&mut self) -> Result<(), ExecutionError> {
         // Defensive programming, shouldn't happen
-        if self.is_halted.load(Ordering::Relaxed) {
-            return Err(ExecutionError::Terminated);
+        if !self.is_terminated && self.is_halted.load(Ordering::Relaxed) {
+            self.is_terminated = true;
+            return Err(ExecutionError::Halted);
         }
 
         // Defensive programming, shouldn't happen
@@ -392,12 +405,13 @@ impl Simulation {
     ///
     /// If at least one action was found that satisfied the time bound, the
     /// corresponding new simulation time is returned.
-    fn step_to_next_bounded(
+    fn step_to_next(
         &mut self,
-        upper_time_bound: MonotonicTime,
+        upper_time_bound: Option<MonotonicTime>,
     ) -> Result<Option<MonotonicTime>, ExecutionError> {
-        if self.is_halted.load(Ordering::Relaxed) {
-            return Err(ExecutionError::Terminated);
+        if !self.is_terminated && self.is_halted.load(Ordering::Relaxed) {
+            self.is_terminated = true;
+            return Err(ExecutionError::Halted);
         }
 
         if self.is_terminated {
@@ -415,12 +429,17 @@ impl Simulation {
             action
         }
 
+        let (unbounded, upper_time_bound) = match upper_time_bound {
+            Some(upper_time_bound) => (false, upper_time_bound),
+            None => (true, MonotonicTime::MAX),
+        };
+
         // Closure returning the next key which time stamp is no older than the
         // upper bound, if any. Cancelled actions are pulled and discarded.
         let peek_next_key = |scheduler_queue: &mut MutexGuard<SchedulerQueue>| {
             loop {
                 match scheduler_queue.peek() {
-                    Some((&key, action)) if key.0 <= upper_time_bound => {
+                    Some((&key, action)) if unbounded || key.0 <= upper_time_bound => {
                         if !action.is_cancelled() {
                             break Some(key);
                         }
@@ -502,16 +521,21 @@ impl Simulation {
     ///
     /// This method does not check whether the specified time lies in the future
     /// of the current simulation time.
-    fn step_until_unchecked(&mut self, target_time: MonotonicTime) -> Result<(), ExecutionError> {
+    fn step_until_unchecked(
+        &mut self,
+        target_time: Option<MonotonicTime>,
+    ) -> Result<(), ExecutionError> {
         loop {
-            match self.step_to_next_bounded(target_time) {
+            match self.step_to_next(target_time) {
                 // The target time was reached exactly.
-                Ok(Some(t)) if t == target_time => return Ok(()),
+                Ok(reached_time) if reached_time == target_time => return Ok(()),
                 // No actions are scheduled before or at the target time.
                 Ok(None) => {
-                    // Update the simulation time.
-                    self.time.write(target_time);
-                    self.clock.synchronize(target_time);
+                    if let Some(target_time) = target_time {
+                        // Update the simulation time.
+                        self.time.write(target_time);
+                        self.clock.synchronize(target_time);
+                    }
                     return Ok(());
                 }
                 Err(e) => return Err(e),
