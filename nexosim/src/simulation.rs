@@ -94,6 +94,7 @@ use std::error::Error;
 use std::fmt;
 use std::future::Future;
 use std::pin::Pin;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex, MutexGuard};
 use std::task::Poll;
 use std::time::Duration;
@@ -160,6 +161,7 @@ pub struct Simulation {
     timeout: Duration,
     observers: Vec<(String, Box<dyn ChannelObserver>)>,
     model_names: Vec<String>,
+    is_halted: Arc<AtomicBool>,
     is_terminated: bool,
 }
 
@@ -175,6 +177,7 @@ impl Simulation {
         timeout: Duration,
         observers: Vec<(String, Box<dyn ChannelObserver>)>,
         model_names: Vec<String>,
+        is_halted: Arc<AtomicBool>,
     ) -> Self {
         Self {
             executor,
@@ -185,6 +188,7 @@ impl Simulation {
             timeout,
             observers,
             model_names,
+            is_halted,
             is_terminated: false,
         }
     }
@@ -216,7 +220,7 @@ impl Simulation {
     /// simulation clock. This method blocks until all newly processed events
     /// have completed.
     pub fn step(&mut self) -> Result<(), ExecutionError> {
-        self.step_to_next_bounded(MonotonicTime::MAX).map(|_| ())
+        self.step_to_next(None).map(|_| ())
     }
 
     /// Iteratively advances the simulation time until the specified deadline,
@@ -232,7 +236,19 @@ impl Simulation {
         if target_time < now {
             return Err(ExecutionError::InvalidDeadline(target_time));
         }
-        self.step_until_unchecked(target_time)
+        self.step_until_unchecked(Some(target_time))
+    }
+
+    /// Iteratively advances the simulation time, as if by calling
+    /// [`Simulation::step()`] repeatedly.
+    ///
+    /// This method blocks until all events scheduled have completed. If
+    /// simulation is halted, this method returns without an error.
+    pub fn step_unbounded(&mut self) -> Result<(), ExecutionError> {
+        match self.step_until_unchecked(None) {
+            Err(ExecutionError::Halted) => Ok(()),
+            result => result,
+        }
     }
 
     /// Processes an action immediately, blocking until completion.
@@ -332,6 +348,11 @@ impl Simulation {
             return Err(ExecutionError::Terminated);
         }
 
+        if self.is_halted.load(Ordering::Relaxed) {
+            self.is_terminated = true;
+            return Err(ExecutionError::Halted);
+        }
+
         self.executor.run(self.timeout).map_err(|e| {
             self.is_terminated = true;
 
@@ -382,10 +403,19 @@ impl Simulation {
     ///
     /// If at least one action was found that satisfied the time bound, the
     /// corresponding new simulation time is returned.
-    fn step_to_next_bounded(
+    fn step_to_next(
         &mut self,
-        upper_time_bound: MonotonicTime,
+        upper_time_bound: Option<MonotonicTime>,
     ) -> Result<Option<MonotonicTime>, ExecutionError> {
+        if self.is_terminated {
+            return Err(ExecutionError::Terminated);
+        }
+
+        if self.is_halted.load(Ordering::Relaxed) {
+            self.is_terminated = true;
+            return Err(ExecutionError::Halted);
+        }
+
         // Function pulling the next action. If the action is periodic, it is
         // immediately re-scheduled.
         fn pull_next_action(scheduler_queue: &mut MutexGuard<SchedulerQueue>) -> Action {
@@ -396,6 +426,8 @@ impl Simulation {
 
             action
         }
+
+        let upper_time_bound = upper_time_bound.unwrap_or(MonotonicTime::MAX);
 
         // Closure returning the next key which time stamp is no older than the
         // upper bound, if any. Cancelled actions are pulled and discarded.
@@ -484,16 +516,21 @@ impl Simulation {
     ///
     /// This method does not check whether the specified time lies in the future
     /// of the current simulation time.
-    fn step_until_unchecked(&mut self, target_time: MonotonicTime) -> Result<(), ExecutionError> {
+    fn step_until_unchecked(
+        &mut self,
+        target_time: Option<MonotonicTime>,
+    ) -> Result<(), ExecutionError> {
         loop {
-            match self.step_to_next_bounded(target_time) {
+            match self.step_to_next(target_time) {
                 // The target time was reached exactly.
-                Ok(Some(t)) if t == target_time => return Ok(()),
+                Ok(reached_time) if reached_time == target_time => return Ok(()),
                 // No actions are scheduled before or at the target time.
                 Ok(None) => {
-                    // Update the simulation time.
-                    self.time.write(target_time);
-                    self.clock.synchronize(target_time);
+                    if let Some(target_time) = target_time {
+                        // Update the simulation time.
+                        self.time.write(target_time);
+                        self.clock.synchronize(target_time);
+                    }
                     return Ok(());
                 }
                 Err(e) => return Err(e),
@@ -506,7 +543,11 @@ impl Simulation {
     /// Returns a scheduler handle.
     #[cfg(feature = "grpc")]
     pub(crate) fn scheduler(&self) -> Scheduler {
-        Scheduler::new(self.scheduler_queue.clone(), self.time.reader())
+        Scheduler::new(
+            self.scheduler_queue.clone(),
+            self.time.reader(),
+            self.is_halted.clone(),
+        )
     }
 }
 
@@ -533,6 +574,8 @@ pub struct DeadlockInfo {
 /// An error returned upon simulation execution failure.
 #[derive(Debug)]
 pub enum ExecutionError {
+    /// The simulation has been intentionally stopped.
+    Halted,
     /// The simulation has been terminated due to an earlier deadlock, message
     /// loss, missing recipient, model panic, timeout or synchronization loss.
     Terminated,
@@ -613,6 +656,7 @@ pub enum ExecutionError {
 impl fmt::Display for ExecutionError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
+            Self::Halted => f.write_str("the simulation has been intentionally stopped"),
             Self::Terminated => f.write_str("the simulation has been terminated"),
             Self::Deadlock(list) => {
                 f.write_str(

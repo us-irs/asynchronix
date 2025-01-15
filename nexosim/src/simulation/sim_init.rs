@@ -1,4 +1,5 @@
 use std::fmt;
+use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
@@ -20,6 +21,7 @@ pub struct SimInit {
     executor: Executor,
     scheduler_queue: Arc<Mutex<SchedulerQueue>>,
     time: AtomicTime,
+    is_halted: Arc<AtomicBool>,
     clock: Box<dyn Clock + 'static>,
     clock_tolerance: Option<Duration>,
     timeout: Duration,
@@ -64,6 +66,7 @@ impl SimInit {
             executor,
             scheduler_queue: Arc::new(Mutex::new(PriorityQueue::new())),
             time,
+            is_halted: Arc::new(AtomicBool::new(false)),
             clock: Box::new(NoClock::new()),
             clock_tolerance: None,
             timeout: Duration::ZERO,
@@ -91,7 +94,11 @@ impl SimInit {
         };
         self.observers
             .push((name.clone(), Box::new(mailbox.0.observer())));
-        let scheduler = GlobalScheduler::new(self.scheduler_queue.clone(), self.time.reader());
+        let scheduler = GlobalScheduler::new(
+            self.scheduler_queue.clone(),
+            self.time.reader(),
+            self.is_halted.clone(),
+        );
 
         add_model(
             model,
@@ -157,7 +164,11 @@ impl SimInit {
         self.time.write(start_time);
         self.clock.synchronize(start_time);
 
-        let scheduler = Scheduler::new(self.scheduler_queue.clone(), self.time.reader());
+        let scheduler = Scheduler::new(
+            self.scheduler_queue.clone(),
+            self.time.reader(),
+            self.is_halted.clone(),
+        );
         let mut simulation = Simulation::new(
             self.executor,
             self.scheduler_queue,
@@ -167,6 +178,7 @@ impl SimInit {
             self.timeout,
             self.observers,
             self.model_names,
+            self.is_halted,
         );
         simulation.run()?;
 

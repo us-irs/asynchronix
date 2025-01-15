@@ -8,6 +8,9 @@ use crate::time::{Deadline, MonotonicTime};
 
 use super::{Model, ProtoModel};
 
+#[cfg(all(test, not(nexosim_loom)))]
+use crate::channel::Receiver;
+
 /// A local context for models.
 ///
 /// A `Context` is a handle to the global context associated to a model
@@ -519,5 +522,18 @@ impl<'a, P: ProtoModel> BuildContext<'a, P> {
             self.abort_signal,
             self.model_names,
         );
+    }
+}
+
+#[cfg(all(test, not(nexosim_loom)))]
+impl<M: Model> Context<M> {
+    /// Creates a dummy context for testing purposes.
+    pub(crate) fn new_dummy() -> Self {
+        let dummy_address = Receiver::new(1).sender();
+        Context::new(
+            String::new(),
+            GlobalScheduler::new_dummy(),
+            Address(dummy_address),
+        )
     }
 }
