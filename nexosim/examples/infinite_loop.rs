@@ -104,7 +104,7 @@ fn main() -> Result<(), SimulationError> {
         // ----------
         // Simulation.
         // ----------
-        simu.step_forever()
+        simu.step_unbounded()
     });
 
     // Send data to simulation from outside.

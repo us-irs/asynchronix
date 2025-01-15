@@ -244,7 +244,7 @@ impl Simulation {
     ///
     /// This method blocks until all events scheduled have completed. If
     /// simulation is halted, this method returns without an error.
-    pub fn step_forever(&mut self) -> Result<(), ExecutionError> {
+    pub fn step_unbounded(&mut self) -> Result<(), ExecutionError> {
         match self.step_until_unchecked(None) {
             Err(ExecutionError::Halted) => Ok(()),
             result => result,
