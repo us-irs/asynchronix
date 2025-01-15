@@ -344,15 +344,13 @@ impl Simulation {
 
     /// Runs the executor.
     fn run(&mut self) -> Result<(), ExecutionError> {
-        // Defensive programming, shouldn't happen
-        if !self.is_terminated && self.is_halted.load(Ordering::Relaxed) {
-            self.is_terminated = true;
-            return Err(ExecutionError::Halted);
-        }
-
-        // Defensive programming, shouldn't happen
         if self.is_terminated {
             return Err(ExecutionError::Terminated);
+        }
+
+        if self.is_halted.load(Ordering::Relaxed) {
+            self.is_terminated = true;
+            return Err(ExecutionError::Halted);
         }
 
         self.executor.run(self.timeout).map_err(|e| {
@@ -409,13 +407,13 @@ impl Simulation {
         &mut self,
         upper_time_bound: Option<MonotonicTime>,
     ) -> Result<Option<MonotonicTime>, ExecutionError> {
-        if !self.is_terminated && self.is_halted.load(Ordering::Relaxed) {
-            self.is_terminated = true;
-            return Err(ExecutionError::Halted);
-        }
-
         if self.is_terminated {
             return Err(ExecutionError::Terminated);
+        }
+
+        if self.is_halted.load(Ordering::Relaxed) {
+            self.is_terminated = true;
+            return Err(ExecutionError::Halted);
         }
 
         // Function pulling the next action. If the action is periodic, it is
