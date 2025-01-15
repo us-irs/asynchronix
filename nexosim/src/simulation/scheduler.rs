@@ -20,6 +20,9 @@ use crate::simulation::Address;
 use crate::time::{AtomicTimeReader, Deadline, MonotonicTime};
 use crate::util::priority_queue::PriorityQueue;
 
+#[cfg(all(test, not(nexosim_loom)))]
+use crate::{time::TearableAtomicTime, util::sync_cell::SyncCell};
+
 const GLOBAL_SCHEDULER_ORIGIN_ID: usize = 0;
 
 /// A global scheduler.
@@ -833,4 +836,15 @@ pub(crate) async fn send_keyed_event<M, F, T, S>(
             },
         )
         .await;
+}
+
+#[cfg(all(test, not(nexosim_loom)))]
+impl GlobalScheduler {
+    /// Creates a dummy scheduler for testing purposes.
+    pub(crate) fn new_dummy() -> Self {
+        let dummy_priority_queue = Arc::new(Mutex::new(PriorityQueue::new()));
+        let dummy_time = SyncCell::new(TearableAtomicTime::new(MonotonicTime::EPOCH)).reader();
+        let dummy_halter = Arc::new(AtomicBool::new(false));
+        GlobalScheduler::new(dummy_priority_queue, dummy_time, dummy_halter)
+    }
 }
