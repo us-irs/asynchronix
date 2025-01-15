@@ -427,17 +427,14 @@ impl Simulation {
             action
         }
 
-        let (unbounded, upper_time_bound) = match upper_time_bound {
-            Some(upper_time_bound) => (false, upper_time_bound),
-            None => (true, MonotonicTime::MAX),
-        };
+        let upper_time_bound = upper_time_bound.unwrap_or(MonotonicTime::MAX);
 
         // Closure returning the next key which time stamp is no older than the
         // upper bound, if any. Cancelled actions are pulled and discarded.
         let peek_next_key = |scheduler_queue: &mut MutexGuard<SchedulerQueue>| {
             loop {
                 match scheduler_queue.peek() {
-                    Some((&key, action)) if unbounded || key.0 <= upper_time_bound => {
+                    Some((&key, action)) if key.0 <= upper_time_bound => {
                         if !action.is_cancelled() {
                             break Some(key);
                         }
