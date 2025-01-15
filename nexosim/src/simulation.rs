@@ -572,6 +572,7 @@ pub struct DeadlockInfo {
 }
 
 /// An error returned upon simulation execution failure.
+#[non_exhaustive]
 #[derive(Debug)]
 pub enum ExecutionError {
     /// The simulation has been intentionally stopped.
