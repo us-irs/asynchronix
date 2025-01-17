@@ -123,9 +123,9 @@ fn main() -> Result<(), SimulationError> {
 
     // Stop the simulation.
     scheduler.halt();
-    Ok(match simulation_handle.join().unwrap() {
+    match simulation_handle.join().unwrap() {
         Err(ExecutionError::Halted) => Ok(()),
-        Err(e) => Err(e),
+        Err(e) => Err(e.into()),
         _ => Ok(()),
-    }?)
+    }
 }
