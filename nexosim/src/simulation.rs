@@ -242,13 +242,9 @@ impl Simulation {
     /// Iteratively advances the simulation time, as if by calling
     /// [`Simulation::step()`] repeatedly.
     ///
-    /// This method blocks until all events scheduled have completed. If
-    /// simulation is halted, this method returns without an error.
+    /// This method blocks until all events scheduled have completed.
     pub fn step_unbounded(&mut self) -> Result<(), ExecutionError> {
-        match self.step_until_unchecked(None) {
-            Err(ExecutionError::Halted) => Ok(()),
-            result => result,
-        }
+        self.step_until_unchecked(None)
     }
 
     /// Processes an action immediately, blocking until completion.
