@@ -26,7 +26,7 @@ use std::time::Duration;
 
 use nexosim::model::{Context, InitializedModel, Model};
 use nexosim::ports::{EventBuffer, Output};
-use nexosim::simulation::{Mailbox, SimInit, SimulationError};
+use nexosim::simulation::{ExecutionError, Mailbox, SimInit, SimulationError};
 use nexosim::time::{AutoSystemClock, MonotonicTime};
 
 const DELTA: Duration = Duration::from_millis(2);
@@ -123,5 +123,9 @@ fn main() -> Result<(), SimulationError> {
 
     // Stop the simulation.
     scheduler.halt();
-    Ok(simulation_handle.join().unwrap()?)
+    match simulation_handle.join().unwrap() {
+        Err(ExecutionError::Halted) => Ok(()),
+        Err(e) => Err(e.into()),
+        _ => Ok(()),
+    }
 }
