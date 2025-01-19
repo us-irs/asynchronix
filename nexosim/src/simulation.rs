@@ -537,7 +537,7 @@ impl Simulation {
     }
 
     /// Returns a scheduler handle.
-    #[cfg(feature = "grpc")]
+    #[cfg(feature = "server")]
     pub(crate) fn scheduler(&self) -> Scheduler {
         Scheduler::new(
             self.scheduler_queue.clone(),

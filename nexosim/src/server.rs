@@ -6,3 +6,6 @@ mod run;
 mod services;
 
 pub use run::run;
+
+#[cfg(unix)]
+pub use run::run_local;

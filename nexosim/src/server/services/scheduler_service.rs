@@ -1,8 +1,8 @@
 use std::fmt;
 use std::sync::Arc;
 
-use crate::grpc::key_registry::{KeyRegistry, KeyRegistryId};
 use crate::registry::EventSourceRegistry;
+use crate::server::key_registry::{KeyRegistry, KeyRegistryId};
 use crate::simulation::Scheduler;
 
 use super::super::codegen::simulation::*;

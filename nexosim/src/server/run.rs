@@ -1,6 +1,7 @@
-//! gRPC simulation service.
+//! Simulation server.
 
 use std::net::SocketAddr;
+use std::path::Path;
 use std::sync::Arc;
 use std::sync::Mutex;
 use std::sync::MutexGuard;
@@ -16,7 +17,7 @@ use super::key_registry::KeyRegistry;
 use super::services::InitService;
 use super::services::{ControllerService, MonitorService, SchedulerService};
 
-/// Runs a gRPC simulation server.
+/// Runs a simulation from a network server.
 ///
 /// The first argument is a closure that takes an initialization configuration
 /// and is called every time the simulation is (re)started by the remote client.
@@ -30,7 +31,7 @@ where
     run_service(GrpcSimulationService::new(sim_gen), addr)
 }
 
-/// Monomorphization of the networking code.
+/// Monomorphization of the network server.
 ///
 /// Keeping this as a separate monomorphized fragment can even triple
 /// compilation speed for incremental release builds.
@@ -38,8 +39,8 @@ fn run_service(
     service: GrpcSimulationService,
     addr: SocketAddr,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    // Use 2 threads so that the even if the controller service is blocked due
-    // to ongoing simulation execution, other services can still be used
+    // Use 2 threads so that even if the controller service is blocked due to
+    // ongoing simulation execution, other services can still be used
     // concurrently.
     let rt = tokio::runtime::Builder::new_multi_thread()
         .worker_threads(2)
@@ -50,6 +51,82 @@ fn run_service(
         Server::builder()
             .add_service(simulation_server::SimulationServer::new(service))
             .serve(addr)
+            .await?;
+
+        Ok(())
+    })
+}
+
+/// Runs a simulation locally from a Unix Domain Sockets server.
+///
+/// The first argument is a closure that takes an initialization configuration
+/// and is called every time the simulation is (re)started by the remote client.
+/// It must create a new simulation, complemented by a registry that exposes the
+/// public event and query interface.
+#[cfg(unix)]
+pub fn run_local<F, I, P>(sim_gen: F, path: P) -> Result<(), Box<dyn std::error::Error>>
+where
+    F: FnMut(I) -> Result<(Simulation, EndpointRegistry), SimulationError> + Send + 'static,
+    I: DeserializeOwned,
+    P: AsRef<Path>,
+{
+    let path = path.as_ref();
+    run_local_service(GrpcSimulationService::new(sim_gen), path)
+}
+
+/// Monomorphization of the Unix Domain Sockets server.
+///
+/// Keeping this as a separate monomorphized fragment can even triple
+/// compilation speed for incremental release builds.
+#[cfg(unix)]
+fn run_local_service(
+    service: GrpcSimulationService,
+    path: &Path,
+) -> Result<(), Box<dyn std::error::Error>> {
+    use std::fs;
+    use std::io;
+    use std::os::unix::fs::FileTypeExt;
+
+    use tokio::net::UnixListener;
+    use tokio_stream::wrappers::UnixListenerStream;
+
+    // Unlink the socket if it already exists to prevent an `AddrInUse` error.
+    match fs::metadata(path) {
+        // The path is valid: make sure it actually points to a socket.
+        Ok(socket_meta) => {
+            if !socket_meta.file_type().is_socket() {
+                return Err(Box::new(io::Error::new(
+                    io::ErrorKind::AlreadyExists,
+                    "the specified path points to an existing non-socket file",
+                )));
+            }
+
+            fs::remove_file(path)?;
+        }
+        // Nothing to do: the socket does not exist yet.
+        Err(e) if e.kind() == io::ErrorKind::NotFound => {}
+        // We don't have permission to use the socket.
+        Err(e) => return Err(Box::new(e)),
+    }
+
+    // (Re-)Create the socket.
+    fs::create_dir_all(path.parent().unwrap())?;
+
+    // Use 2 threads so that even if the controller service is blocked due to
+    // ongoing simulation execution, other services can still be used
+    // concurrently.
+    let rt = tokio::runtime::Builder::new_multi_thread()
+        .worker_threads(2)
+        .enable_io()
+        .build()?;
+
+    rt.block_on(async move {
+        let uds = UnixListener::bind(path)?;
+        let uds_stream = UnixListenerStream::new(uds);
+
+        Server::builder()
+            .add_service(simulation_server::SimulationServer::new(service))
+            .serve_with_incoming(uds_stream)
             .await?;
 
         Ok(())
