@@ -36,6 +36,25 @@ pub mod init_reply {
     }
 }
 #[derive(Clone, Copy, PartialEq, ::prost::Message)]
+pub struct HaltRequest {}
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct HaltReply {
+    /// Always returns exactly 1 variant.
+    #[prost(oneof = "halt_reply::Result", tags = "1, 100")]
+    pub result: ::core::option::Option<halt_reply::Result>,
+}
+/// Nested message and enum types in `HaltReply`.
+pub mod halt_reply {
+    /// Always returns exactly 1 variant.
+    #[derive(Clone, PartialEq, ::prost::Oneof)]
+    pub enum Result {
+        #[prost(message, tag = "1")]
+        Empty(()),
+        #[prost(message, tag = "100")]
+        Error(super::Error),
+    }
+}
+#[derive(Clone, Copy, PartialEq, ::prost::Message)]
 pub struct TimeRequest {}
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct TimeReply {
@@ -299,7 +318,10 @@ pub mod close_sink_reply {
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct AnyRequest {
     /// Expects exactly 1 variant.
-    #[prost(oneof = "any_request::Request", tags = "1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11")]
+    #[prost(
+        oneof = "any_request::Request",
+        tags = "1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12"
+    )]
     pub request: ::core::option::Option<any_request::Request>,
 }
 /// Nested message and enum types in `AnyRequest`.
@@ -310,24 +332,26 @@ pub mod any_request {
         #[prost(message, tag = "1")]
         InitRequest(super::InitRequest),
         #[prost(message, tag = "2")]
-        TimeRequest(super::TimeRequest),
+        HaltRequest(super::HaltRequest),
         #[prost(message, tag = "3")]
-        StepRequest(super::StepRequest),
+        TimeRequest(super::TimeRequest),
         #[prost(message, tag = "4")]
-        StepUntilRequest(super::StepUntilRequest),
+        StepRequest(super::StepRequest),
         #[prost(message, tag = "5")]
-        ScheduleEventRequest(super::ScheduleEventRequest),
+        StepUntilRequest(super::StepUntilRequest),
         #[prost(message, tag = "6")]
-        CancelEventRequest(super::CancelEventRequest),
+        ScheduleEventRequest(super::ScheduleEventRequest),
         #[prost(message, tag = "7")]
-        ProcessEventRequest(super::ProcessEventRequest),
+        CancelEventRequest(super::CancelEventRequest),
         #[prost(message, tag = "8")]
-        ProcessQueryRequest(super::ProcessQueryRequest),
+        ProcessEventRequest(super::ProcessEventRequest),
         #[prost(message, tag = "9")]
-        ReadEventsRequest(super::ReadEventsRequest),
+        ProcessQueryRequest(super::ProcessQueryRequest),
         #[prost(message, tag = "10")]
-        OpenSinkRequest(super::OpenSinkRequest),
+        ReadEventsRequest(super::ReadEventsRequest),
         #[prost(message, tag = "11")]
+        OpenSinkRequest(super::OpenSinkRequest),
+        #[prost(message, tag = "12")]
         CloseSinkRequest(super::CloseSinkRequest),
     }
 }
@@ -431,6 +455,10 @@ pub mod simulation_server {
             &self,
             request: tonic::Request<super::InitRequest>,
         ) -> std::result::Result<tonic::Response<super::InitReply>, tonic::Status>;
+        async fn halt(
+            &self,
+            request: tonic::Request<super::HaltRequest>,
+        ) -> std::result::Result<tonic::Response<super::HaltReply>, tonic::Status>;
         async fn time(
             &self,
             request: tonic::Request<super::TimeRequest>,
@@ -588,6 +616,49 @@ pub mod simulation_server {
                     let inner = self.inner.clone();
                     let fut = async move {
                         let method = InitSvc(inner);
+                        let codec = tonic::codec::ProstCodec::default();
+                        let mut grpc = tonic::server::Grpc::new(codec)
+                            .apply_compression_config(
+                                accept_compression_encodings,
+                                send_compression_encodings,
+                            )
+                            .apply_max_message_size_config(
+                                max_decoding_message_size,
+                                max_encoding_message_size,
+                            );
+                        let res = grpc.unary(method, req).await;
+                        Ok(res)
+                    };
+                    Box::pin(fut)
+                }
+                "/simulation.v1.Simulation/Halt" => {
+                    #[allow(non_camel_case_types)]
+                    struct HaltSvc<T: Simulation>(pub Arc<T>);
+                    impl<T: Simulation> tonic::server::UnaryService<super::HaltRequest>
+                    for HaltSvc<T> {
+                        type Response = super::HaltReply;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
+                        fn call(
+                            &mut self,
+                            request: tonic::Request<super::HaltRequest>,
+                        ) -> Self::Future {
+                            let inner = Arc::clone(&self.0);
+                            let fut = async move {
+                                <T as Simulation>::halt(&inner, request).await
+                            };
+                            Box::pin(fut)
+                        }
+                    }
+                    let accept_compression_encodings = self.accept_compression_encodings;
+                    let send_compression_encodings = self.send_compression_encodings;
+                    let max_decoding_message_size = self.max_decoding_message_size;
+                    let max_encoding_message_size = self.max_encoding_message_size;
+                    let inner = self.inner.clone();
+                    let fut = async move {
+                        let method = HaltSvc(inner);
                         let codec = tonic::codec::ProstCodec::default();
                         let mut grpc = tonic::server::Grpc::new(codec)
                             .apply_compression_config(

@@ -49,6 +49,14 @@ message InitReply {
   }
 }
 
+message HaltRequest {}
+message HaltReply {
+  oneof result { // Always returns exactly 1 variant.
+    google.protobuf.Empty empty = 1;
+    Error error = 100;
+  }
+}
+
 message TimeRequest {}
 message TimeReply {
   oneof result { // Always returns exactly 1 variant.
@@ -160,21 +168,23 @@ message CloseSinkReply {
 message AnyRequest {
   oneof request { // Expects exactly 1 variant.
     InitRequest init_request = 1;
-    TimeRequest time_request = 2;
-    StepRequest step_request = 3;
-    StepUntilRequest step_until_request = 4;
-    ScheduleEventRequest schedule_event_request = 5;
-    CancelEventRequest cancel_event_request = 6;
-    ProcessEventRequest process_event_request = 7;
-    ProcessQueryRequest process_query_request = 8;
-    ReadEventsRequest read_events_request = 9;
-    OpenSinkRequest open_sink_request = 10;
-    CloseSinkRequest close_sink_request = 11;
+    HaltRequest halt_request = 2;
+    TimeRequest time_request = 3;
+    StepRequest step_request = 4;
+    StepUntilRequest step_until_request = 5;
+    ScheduleEventRequest schedule_event_request = 6;
+    CancelEventRequest cancel_event_request = 7;
+    ProcessEventRequest process_event_request = 8;
+    ProcessQueryRequest process_query_request = 9;
+    ReadEventsRequest read_events_request = 10;
+    OpenSinkRequest open_sink_request = 11;
+    CloseSinkRequest close_sink_request = 12;
   }
 }
 
 service Simulation {
   rpc Init(InitRequest) returns (InitReply);
+  rpc Halt(HaltRequest) returns (HaltReply);
   rpc Time(TimeRequest) returns (TimeReply);
   rpc Step(StepRequest) returns (StepReply);
   rpc StepUntil(StepUntilRequest) returns (StepUntilReply);

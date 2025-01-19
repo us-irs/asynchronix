@@ -1,6 +1,7 @@
 //! Simulation server.
 
 use std::net::SocketAddr;
+#[cfg(unix)]
 use std::path::Path;
 use std::sync::Arc;
 use std::sync::Mutex;
@@ -209,6 +210,11 @@ impl simulation_server::Simulation for GrpcSimulationService {
         }
 
         Ok(Response::new(reply))
+    }
+    async fn halt(&self, request: Request<HaltRequest>) -> Result<Response<HaltReply>, Status> {
+        let request = request.into_inner();
+
+        Ok(Response::new(self.scheduler().halt(request)))
     }
     async fn time(&self, request: Request<TimeRequest>) -> Result<Response<TimeReply>, Status> {
         let request = request.into_inner();

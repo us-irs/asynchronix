@@ -191,6 +191,22 @@ impl SchedulerService {
             }),
         }
     }
+
+    /// Requests the simulation to stop when advancing to the next step.
+    pub(crate) fn halt(&mut self, _request: HaltRequest) -> HaltReply {
+        let reply = match self {
+            Self::Started { scheduler, .. } => {
+                scheduler.halt();
+
+                halt_reply::Result::Empty(())
+            }
+            Self::NotStarted => halt_reply::Result::Error(simulation_not_started_error()),
+        };
+
+        HaltReply {
+            result: Some(reply),
+        }
+    }
 }
 
 impl fmt::Debug for SchedulerService {

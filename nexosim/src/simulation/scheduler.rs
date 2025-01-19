@@ -183,7 +183,7 @@ impl Scheduler {
         )
     }
 
-    /// Stops the simulation on the next step.
+    /// Requests the simulation to stop when advancing to the next step.
     pub fn halt(&mut self) {
         self.0.halt()
     }
@@ -557,7 +557,7 @@ impl GlobalScheduler {
         Ok(event_key)
     }
 
-    /// Stops the simulation on the next step.
+    /// Requests the simulation to stop when advancing to the next step.
     pub(crate) fn halt(&mut self) {
         self.is_halted.store(true, Ordering::Relaxed);
     }
