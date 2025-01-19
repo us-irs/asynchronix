@@ -30,6 +30,7 @@ impl<C: Clock + ?Sized> Clock for Box<C> {
 
 /// The current synchronization status of a clock.
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
+#[must_use]
 pub enum SyncStatus {
     /// The clock is synchronized.
     Synchronized,
@@ -207,7 +208,7 @@ mod test {
         let now = Instant::now();
         let mut clock = SystemClock::from_instant(t0, now);
         let t1 = t0 + Duration::from_millis(200);
-        clock.synchronize(t1);
+        assert_eq!(clock.synchronize(t1), SyncStatus::Synchronized);
         let elapsed = now.elapsed().as_secs_f64();
         let dt = t1.duration_since(t0).as_secs_f64();
 

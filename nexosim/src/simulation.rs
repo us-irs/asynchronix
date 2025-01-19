@@ -519,13 +519,21 @@ impl Simulation {
         loop {
             match self.step_to_next(target_time) {
                 // The target time was reached exactly.
-                Ok(reached_time) if reached_time == target_time => return Ok(()),
+                Ok(time) if time == target_time => return Ok(()),
                 // No actions are scheduled before or at the target time.
                 Ok(None) => {
                     if let Some(target_time) = target_time {
                         // Update the simulation time.
                         self.time.write(target_time);
-                        self.clock.synchronize(target_time);
+                        if let SyncStatus::OutOfSync(lag) = self.clock.synchronize(target_time) {
+                            if let Some(tolerance) = &self.clock_tolerance {
+                                if &lag > tolerance {
+                                    self.is_terminated = true;
+
+                                    return Err(ExecutionError::OutOfSync(lag));
+                                }
+                            }
+                        }
                     }
                     return Ok(());
                 }
