@@ -30,7 +30,7 @@ keywords = [
 
 [features]
 # gRPC service.
-grpc = [
+server = [
     "dep:bytes",
     "dep:ciborium",
     "dep:prost",
@@ -38,6 +38,7 @@ grpc = [
     "dep:serde",
     "dep:tonic",
     "dep:tokio",
+    "dep:tokio-stream",
     "dep:tonic",
     "tai-time/serde",
 ]
@@ -84,6 +85,9 @@ tracing = { version = "0.1.40", default-features = false, features = [
 ], optional = true }
 tracing-subscriber = { version = "0.3.18", optional = true }
 
+[target.'cfg(unix)'.dependencies]
+tokio-stream = { version = "0.1.10", features = ["net"], optional = true }
+
 [dev-dependencies]
 futures-util = "0.3"
 futures-executor = "0.3"
@@ -93,15 +97,15 @@ tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
 loom = "0.7"
 waker-fn = "1.1"
 
-[target.'cfg(nexosim_grpc_codegen)'.build-dependencies]
+[target.'cfg(nexosim_server_codegen)'.build-dependencies]
 tonic-build = { version = "0.12" }
 
 [lints.rust]
 # `nexosim_loom` flag: run loom-based tests.
-# `nexosim_grpc_codegen` flag: regenerate gRPC code from .proto definitions.
+# `nexosim_server_codegen` flag: regenerate gRPC code from .proto definitions.
 unexpected_cfgs = { level = "warn", check-cfg = [
     'cfg(nexosim_loom)',
-    'cfg(nexosim_grpc_codegen)',
+    'cfg(nexosim_server_codegen)',
 ] }
 
 [package.metadata.docs.rs]

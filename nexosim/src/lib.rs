@@ -399,14 +399,14 @@
 //!
 //! See the [`tracing`] module for more information.
 //!
-//! ## gRPC server
+//! ## Server
 //!
-//! The `grpc` feature provides a gRPC server for remote control and monitoring,
+//! The `server` feature provides a gRPC server for remote control and monitoring,
 //! e.g. from a Python client. It can be activated with:
 //!
 //! ```toml
 //! [dependencies]
-//! nexosim = { version = "0.3.0-beta.0", features = ["grpc"] }
+//! nexosim = { version = "0.3.0-beta.0", features = ["server"] }
 //! ```
 //!
 //! # Other resources
@@ -449,10 +449,10 @@ pub mod simulation;
 pub mod time;
 pub(crate) mod util;
 
-#[cfg(feature = "grpc")]
-pub mod grpc;
-#[cfg(feature = "grpc")]
+#[cfg(feature = "server")]
 pub mod registry;
+#[cfg(feature = "server")]
+pub mod server;
 
 #[cfg(feature = "tracing")]
 pub mod tracing;
