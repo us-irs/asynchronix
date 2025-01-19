@@ -6,8 +6,7 @@ use std::time::Duration;
 use crate::channel::ChannelObserver;
 use crate::executor::{Executor, SimulationContext};
 use crate::model::ProtoModel;
-use crate::time::{AtomicTime, MonotonicTime, TearableAtomicTime};
-use crate::time::{Clock, NoClock};
+use crate::time::{AtomicTime, Clock, MonotonicTime, NoClock, SyncStatus, TearableAtomicTime};
 use crate::util::priority_queue::PriorityQueue;
 use crate::util::sync_cell::SyncCell;
 
@@ -162,7 +161,13 @@ impl SimInit {
         start_time: MonotonicTime,
     ) -> Result<(Simulation, Scheduler), ExecutionError> {
         self.time.write(start_time);
-        self.clock.synchronize(start_time);
+        if let SyncStatus::OutOfSync(lag) = self.clock.synchronize(start_time) {
+            if let Some(tolerance) = &self.clock_tolerance {
+                if &lag > tolerance {
+                    return Err(ExecutionError::OutOfSync(lag));
+                }
+            }
+        }
 
         let scheduler = Scheduler::new(
             self.scheduler_queue.clone(),
