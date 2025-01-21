@@ -1,3 +1,46 @@
+# 0.3.0 (2025-01-20)
+
+The final 0.3.0 release features a very large number of improvements and API
+changes, including all those in the beta release and a couple more.
+
+This release is not compatible with the 0.2.* releases, but porting models and benches should be relatively straightforward.
+
+### Added (mostly API-breaking changes)
+
+- Add a gRPC server for local (Unix Domain Sockets) and remote (http/2)
+  execution ([#12], [#24], [#25], [#26], [#29], [#43], [#78], [#79])
+- Single-threaded executor supporting compilation to WebAssembly ([#24])
+- Add support for the `tracing` crate ([#47])
+- Make `Output`s and `Requestor`s `Clone`-able ([#30], [#48]) 
+- Make the global `Scheduler` an owned `Clone`-able type that can be sent to
+  other threads ([#30]) 
+- Add an automatically managed action key for scheduled actions/events ([#27])
+- Enable connection of different input/output pairs with `map_connect()` methods
+  on `Output` and `Requestor` ([#32])
+- Streamline the creation of data buses (SPI, CAN, MIL-STD-1553, SpaceWire etc.)
+  with `filter_map_connect()` methods on `Output` and `Requestor` ([#32])
+- Implement deadlock detection ([#51])
+- Streamline the builder pattern for models with a `ProtoModel` trait ([#54])
+- Implement execution timeout ([#57]) 
+- Return an error when a real-time simulation clock looses synchronization
+  ([#58])
+- Catch model panics and report them as errors ([#60])
+- Provide additional ordering guaranties when using the global scheduler ([#62])
+- Remove `LineId` line disconnection API ([#63])
+- Implement detection of lost and undelivered messages ([#68], [#70])
+- Provide a `UniRequestor` type for unary requestors ([#69])
+- Add support for intentionally halting an ongoing simulation and add a
+  `Simulation::step_unbounded` method ([#74], [#77])
+
+[#68]: https://github.com/asynchronics/nexosim/pull/68
+[#69]: https://github.com/asynchronics/nexosim/pull/69
+[#70]: https://github.com/asynchronics/nexosim/pull/70
+[#74]: https://github.com/asynchronics/nexosim/pull/74
+[#77]: https://github.com/asynchronics/nexosim/pull/77
+[#78]: https://github.com/asynchronics/nexosim/pull/78
+[#79]: https://github.com/asynchronics/nexosim/pull/79
+
+
 # 0.3.0-beta.0 (2024-11-16)
 
 This beta release features a very large number of improvements and API changes,

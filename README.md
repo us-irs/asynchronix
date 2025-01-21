@@ -5,6 +5,11 @@ discrete-event simulation framework written in Rust. It is meant to scale from
 small, simple simulations to very large simulation benches with complex
 time-driven state machines.
 
+
+## 🎉🥳 NeXosim 0.3 is out! 🚀🛰️
+
+See the [changelog](CHANGELOG.md) for a summary of new features, or head to the extensive [API documentation][API] for the details.
+
 [![Cargo](https://img.shields.io/crates/v/nexosim.svg)](https://crates.io/crates/nexosim)
 [![Documentation](https://docs.rs/nexosim/badge.svg)](https://docs.rs/nexosim)
 [![License](https://img.shields.io/badge/license-MIT%2FApache--2.0-blue.svg)](https://github.com/asynchronics/nexosim#license)
@@ -58,24 +63,11 @@ directories.
 
 ## Usage
 
-Note that this page currently documents the latest beta version for the upcoming
-`0.3.0` release, which contains numerous improvements over the `0.2` branch.
-While the API is considered nearly frozen, some minor changes are still
-possible.
-
-To use the beta version, add to your `Cargo.toml`:
+To use the latest version, add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-nexosim = "0.3.0-beta.0"
-```
-
-If you would rather stay for now with the last official release (published under
-the `asynchronix` name), add this to your `Cargo.toml`:
-
-```toml
-[dependencies]
-asynchronix = "0.2.4"
+nexosim = "0.3.0"
 ```
 
 
@@ -149,8 +141,6 @@ assert_eq!(output_slot.next(), None);
 simu.step()?;
 assert_eq!(simu.time(), t0 + Duration::from_secs(2));
 assert_eq!(output_slot.next(), Some(14.0));
-
-Ok(())
 ```
 
 # Implementation notes
