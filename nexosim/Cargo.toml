@@ -29,7 +29,6 @@ keywords = [
 ]
 
 [features]
-# gRPC service.
 server = [
     "dep:bytes",
     "dep:ciborium",

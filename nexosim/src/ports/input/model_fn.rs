@@ -9,25 +9,20 @@ use super::markers;
 /// A function, method or closures that can be used as an *input port*.
 ///
 /// This trait is in particular implemented for any function or method with the
-/// following signature, where it is implicitly assumed that the function
-/// implements `Send + 'static`:
+/// following signature, where the futures returned by the `async` variants must
+/// implement `Send`:
 ///
 /// ```ignore
-/// FnOnce(&mut M, T)
-/// FnOnce(&mut M, T, &mut Context<M>)
+/// fn(&mut M) // argument elided, implies `T=()`
+/// fn(&mut M, T)
+/// fn(&mut M, T, &mut Context<M>)
+/// async fn(&mut M) // argument elided, implies `T=()`
 /// async fn(&mut M, T)
 /// async fn(&mut M, T, &mut Context<M>)
 /// where
-///     M: Model
-/// ```
-///
-/// It is also implemented for the following signatures when `T=()`:
-///
-/// ```ignore
-/// FnOnce(&mut M)
-/// async fn(&mut M)
-/// where
-///     M: Model
+///     M: Model,
+///     T: Clone + Send + 'static,
+///     R: Send + 'static,
 /// ```
 pub trait InputFn<'a, M: Model, T, S>: Send + 'static {
     /// The `Future` returned by the asynchronous method.
@@ -121,22 +116,16 @@ where
 /// A function, method or closure that can be used as a *replier port*.
 ///
 /// This trait is in particular implemented for any function or method with the
-/// following signature, where it is implicitly assumed that the function
-/// implements `Send + 'static`:
+/// following signature, where the returned futures must implement `Send`:
 ///
 /// ```ignore
+/// async fn(&mut M) -> R // argument elided, implies `T=()`
 /// async fn(&mut M, T) -> R
 /// async fn(&mut M, T, &mut Context<M>) -> R
 /// where
-///     M: Model
-/// ```
-///
-/// It is also implemented for the following signatures when `T=()`:
-///
-/// ```ignore
-/// async fn(&mut M) -> R
-/// where
-///     M: Model
+///     M: Model,
+///     T: Clone + Send + 'static,
+///     R: Send + 'static,
 /// ```
 pub trait ReplierFn<'a, M: Model, T, R, S>: Send + 'static {
     /// The `Future` returned by the asynchronous method.

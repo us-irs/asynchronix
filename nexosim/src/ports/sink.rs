@@ -22,7 +22,7 @@ pub trait EventSinkWriter<T>: Clone + Send + Sync + 'static {
 /// An iterator over collected events with the ability to pause and resume event
 /// collection.
 ///
-/// An `EventSinkStream` will typically be implemented on an `EventSink` for
+/// An `EventSinkStream` will typically be implemented on an [`EventSink`] for
 /// which it will constitute a draining iterator.
 pub trait EventSinkStream: Iterator {
     /// Starts or resumes the collection of new events.

@@ -31,7 +31,7 @@ impl ControllerService {
     /// that event as well as all other events scheduled for the same time.
     ///
     /// Processing is gated by a (possibly blocking) call to
-    /// [`Clock::synchronize()`](crate::time::Clock::synchronize) on the
+    /// [`Clock::synchronize`](crate::time::Clock::synchronize) on the
     /// configured simulation clock. This method blocks until all newly
     /// processed events have completed.
     pub(crate) fn step(&mut self, _request: StepRequest) -> StepReply {
@@ -59,7 +59,7 @@ impl ControllerService {
 
     /// Iteratively advances the simulation time until the specified deadline,
     /// as if by calling
-    /// [`Simulation::step()`](crate::simulation::Simulation::step) repeatedly.
+    /// [`Simulation::step`](crate::simulation::Simulation::step) repeatedly.
     ///
     /// This method blocks until all events scheduled up to the specified target
     /// time have completed. The simulation time upon completion is equal to the

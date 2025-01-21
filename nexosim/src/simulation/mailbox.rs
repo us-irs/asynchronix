@@ -8,7 +8,7 @@ use crate::model::Model;
 /// A mailbox is an entity associated to a model instance that collects all
 /// messages sent to that model. The size of its internal buffer can be
 /// optionally specified at construction time using
-/// [`with_capacity()`](Mailbox::with_capacity).
+/// [`with_capacity`](Mailbox::with_capacity).
 pub struct Mailbox<M: Model>(pub(crate) Receiver<M>);
 
 impl<M: Model> Mailbox<M> {
@@ -58,7 +58,7 @@ impl<M: Model> fmt::Debug for Mailbox<M> {
 /// For the sake of convenience, methods that require an address by value will
 /// typically also accept an `&Address` or an `&Mailbox` since these references
 /// implement the `Into<Address>` trait, automatically invoking
-/// `Address::clone()` or `Mailbox::address()` as appropriate.
+/// `Address::clone` or `Mailbox::address` as appropriate.
 pub struct Address<M: Model>(pub(crate) Sender<M>);
 
 impl<M: Model> Clone for Address<M> {
@@ -80,8 +80,7 @@ impl<M: Model> From<&Address<M>> for Address<M> {
 impl<M: Model> From<&Mailbox<M>> for Address<M> {
     /// Converts a [Mailbox] reference into an [`Address`].
     ///
-    /// This calls [`Mailbox::address()`] on the mailbox and returns the
-    /// address.
+    /// This calls [`Mailbox::address`] on the mailbox and returns the address.
     #[inline]
     fn from(s: &Mailbox<M>) -> Address<M> {
         s.address()

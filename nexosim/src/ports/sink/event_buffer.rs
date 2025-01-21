@@ -12,7 +12,8 @@ struct Inner<T> {
     buffer: Mutex<VecDeque<T>>,
 }
 
-/// An [`EventSink`] and [`EventSinkStream`] with a bounded size.
+/// An iterator implementing [`EventSink`] and [`EventSinkStream`], backed by a
+/// fixed-capacity buffer.
 ///
 /// If the maximum capacity is exceeded, older events are overwritten. Events
 /// are returned in first-in-first-out order. Note that even if the iterator

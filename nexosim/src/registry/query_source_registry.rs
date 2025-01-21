@@ -68,11 +68,11 @@ pub(crate) trait QuerySourceAny: Send + Sync + 'static {
     ) -> Result<(Action, Box<dyn ReplyReceiverAny>), DeserializationError>;
 
     /// Human-readable name of the request type, as returned by
-    /// `any::type_name()`.
+    /// `any::type_name`.
     fn request_type_name(&self) -> &'static str;
 
     /// Human-readable name of the reply type, as returned by
-    /// `any::type_name()`.
+    /// `any::type_name`.
     fn reply_type_name(&self) -> &'static str;
 }
 

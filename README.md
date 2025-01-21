@@ -90,10 +90,12 @@ asynchronix = "0.2.4"
 // Input ●─────►│ multiplier 1 ├─────►│ multiplier 2 ├─────► Output
 //              │              │      │              │
 //              └──────────────┘      └──────────────┘
-use nexosim::model::{Model, Output};
-use nexosim::simulation::{Mailbox, SimInit};
-use nexosim::time::{MonotonicTime, Scheduler};
 use std::time::Duration;
+
+use nexosim::model::{Context, Model};
+use nexosim::ports::{EventSlot, Output};
+use nexosim::simulation::{Mailbox, SimInit};
+use nexosim::time::MonotonicTime;
 
 // A model that doubles its input and forwards it with a 1s delay.
 #[derive(Default)]
@@ -101,9 +103,8 @@ pub struct DelayedMultiplier {
     pub output: Output<f64>,
 }
 impl DelayedMultiplier {
-    pub fn input(&mut self, value: f64, scheduler: &Scheduler<Self>) {
-        scheduler
-            .schedule_event(Duration::from_secs(1), Self::send, 2.0 * value)
+    pub fn input(&mut self, value: f64, ctx: &mut Context<Self>) {
+        ctx.schedule_event(Duration::from_secs(1), Self::send, 2.0 * value)
             .unwrap();
     }
     async fn send(&mut self, value: f64) {
@@ -124,28 +125,32 @@ multiplier1
     .connect(DelayedMultiplier::input, &multiplier2_mbox);
 
 // Keep handles to the main input and output.
-let mut output_slot = multiplier2.output.connect_slot().0;
+let mut output_slot = EventSlot::new();
+multiplier2.output.connect_sink(&output_slot);
 let input_address = multiplier1_mbox.address();
 
 // Instantiate the simulator
 let t0 = MonotonicTime::EPOCH; // arbitrary start time
 let mut simu = SimInit::new()
-    .add_model(multiplier1, multiplier1_mbox)
-    .add_model(multiplier2, multiplier2_mbox)
-    .init(t0);
+    .add_model(multiplier1, multiplier1_mbox, "multiplier 1")
+    .add_model(multiplier2, multiplier2_mbox, "multiplier 2")
+    .init(t0)?
+    .0;
 
 // Send a value to the first multiplier.
-simu.send_event(DelayedMultiplier::input, 3.5, &input_address);
+simu.process_event(DelayedMultiplier::input, 3.5, &input_address)?;
 
 // Advance time to the next event.
-simu.step();
+simu.step()?;
 assert_eq!(simu.time(), t0 + Duration::from_secs(1));
-assert_eq!(output_slot.take(), None);
+assert_eq!(output_slot.next(), None);
 
 // Advance time to the next event.
-simu.step();
+simu.step()?;
 assert_eq!(simu.time(), t0 + Duration::from_secs(2));
-assert_eq!(output_slot.take(), Some(14.0));
+assert_eq!(output_slot.next(), Some(14.0));
+
+Ok(())
 ```
 
 # Implementation notes

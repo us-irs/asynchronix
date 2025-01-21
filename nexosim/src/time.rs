@@ -1,4 +1,4 @@
-//! Simulation time and scheduling.
+//! Simulation time and clocks.
 //!
 //! This module provides most notably:
 //!

@@ -1,7 +1,8 @@
 //! Registry for sinks and sources.
 //!
 //! This module provides the `EndpointRegistry` object which associates each
-//! event sink, event source and query source to a unique name.
+//! event sink, event source and query source in a simulation bench to a unique
+//! name.
 
 mod event_sink_registry;
 mod event_source_registry;
@@ -15,8 +16,7 @@ pub(crate) use event_sink_registry::EventSinkRegistry;
 pub(crate) use event_source_registry::EventSourceRegistry;
 pub(crate) use query_source_registry::QuerySourceRegistry;
 
-/// A registry that holds all sources and sinks meant to be accessed through
-/// bindings or remote procedure calls.
+/// A registry that holds the sources and sinks of a simulation bench.
 #[derive(Default, Debug)]
 pub struct EndpointRegistry {
     pub(crate) event_sink_registry: EventSinkRegistry,

@@ -151,7 +151,7 @@ impl SimInit {
     }
 
     /// Builds a simulation initialized at the specified simulation time,
-    /// executing the [`Model::init()`](crate::model::Model::init) method on all
+    /// executing the [`Model::init`](crate::model::Model::init) method on all
     /// model initializers.
     ///
     /// The simulation object and its associated scheduler are returned upon
