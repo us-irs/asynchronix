@@ -13,10 +13,10 @@
 //! 2. connection of the models' output/requestor ports to input/replier ports
 //!    using the [`Address`]es of the target models,
 //! 3. instantiation of a [`SimInit`] simulation builder and migration of all
-//!    models and mailboxes to the builder with [`SimInit::add_model()`],
-//! 4. initialization of a [`Simulation`] instance with [`SimInit::init()`],
+//!    models and mailboxes to the builder with [`SimInit::add_model`],
+//! 4. initialization of a [`Simulation`] instance with [`SimInit::init`],
 //!    possibly preceded by the setup of a custom clock with
-//!    [`SimInit::set_clock()`],
+//!    [`SimInit::set_clock`],
 //! 5. discrete-time simulation, which typically involves scheduling events and
 //!    incrementing simulation time while observing the models outputs.
 //!
@@ -42,8 +42,8 @@
 //!
 //! The default capacity should prove a reasonable trade-off in most cases, but
 //! for situations where it is not appropriate, it is possible to instantiate
-//! mailboxes with a custom capacity by using [`Mailbox::with_capacity()`]
-//! instead of [`Mailbox::new()`].
+//! mailboxes with a custom capacity by using [`Mailbox::with_capacity`] instead
+//! of [`Mailbox::new`].
 //!
 //! ## Avoiding deadlocks
 //!
@@ -68,14 +68,13 @@
 //!
 //! The second scenario is rare in well-behaving models and if it occurs, it is
 //! most typically at the very beginning of a simulation when models
-//! simultaneously and mutually send events during the call to
-//! [`Model::init()`](crate::model::Model::init). If such a large amount of
-//! events is deemed normal behavior, the issue can be remedied by increasing
-//! the capacity of the saturated mailboxes.
+//! simultaneously and mutually send events during the call to [`Model::init`].
+//! If such a large amount of events is deemed normal behavior, the issue can be
+//! remedied by increasing the capacity of the saturated mailboxes.
 //!
-//! Any deadlocks will be reported as an [`ExecutionError::Deadlock`] error,
-//! which identifies all involved models and the amount of unprocessed messages
-//! (events or requests) in their mailboxes.
+//! Deadlocks are reported as [`ExecutionError::Deadlock`] errors, which
+//! identify all involved models and the count of unprocessed messages (events
+//! or requests) in their mailboxes.
 mod mailbox;
 mod scheduler;
 mod sim_init;
@@ -118,7 +117,7 @@ thread_local! { pub(crate) static CURRENT_MODEL_ID: Cell<ModelId> = const { Cell
 /// Simulation environment.
 ///
 /// A `Simulation` is created by calling
-/// [`SimInit::init()`](crate::simulation::SimInit::init) on a simulation
+/// [`SimInit::init`](crate::simulation::SimInit::init) on a simulation
 /// initializer. It contains an asynchronous executor that runs all simulation
 /// models added beforehand to [`SimInit`].
 ///
@@ -126,31 +125,31 @@ thread_local! { pub(crate) static CURRENT_MODEL_ID: Cell<ModelId> = const { Cell
 /// simulation time. The scheduling queue can be accessed from the simulation
 /// itself, but also from models via the optional [`&mut
 /// Context`](crate::model::Context) argument of input and replier port methods.
-/// Likewise, simulation time can be accessed with the [`Simulation::time()`]
+/// Likewise, simulation time can be accessed with the [`Simulation::time`]
 /// method, or from models with the
-/// [`Context::time()`](crate::simulation::Context::time) method.
+/// [`Context::time`](crate::simulation::Context::time) method.
 ///
 /// Events and queries can be scheduled immediately, *i.e.* for the current
-/// simulation time, using [`process_event()`](Simulation::process_event) and
-/// [`send_query()`](Simulation::process_query). Calling these methods will
-/// block until all computations triggered by such event or query have
-/// completed. In the case of queries, the response is returned.
+/// simulation time, using [`process_event`](Simulation::process_event) and
+/// [`send_query`](Simulation::process_query). Calling these methods will block
+/// until all computations triggered by such event or query have completed. In
+/// the case of queries, the response is returned.
 ///
 /// Events can also be scheduled at a future simulation time using one of the
-/// [`schedule_*()`](Scheduler::schedule_event) method. These methods queue an
+/// [`schedule_*`](Scheduler::schedule_event) method. These methods queue an
 /// event without blocking.
 ///
 /// Finally, the [`Simulation`] instance manages simulation time. A call to
-/// [`step()`](Simulation::step) will:
+/// [`step`](Simulation::step) will:
 ///
 /// 1. increment simulation time until that of the next scheduled event in
 ///    chronological order, then
-/// 2. call [`Clock::synchronize()`](crate::time::Clock::synchronize) which, unless the
-///    simulation is configured to run as fast as possible, blocks until the
-///    desired wall clock time, and finally
+/// 2. call [`Clock::synchronize`] which, unless the simulation is configured to
+///    run as fast as possible, blocks until the desired wall clock time, and
+///    finally
 /// 3. run all computations scheduled for the new simulation time.
 ///
-/// The [`step_until()`](Simulation::step_until) method operates similarly but
+/// The [`step_until`](Simulation::step_until) method operates similarly but
 /// iterates until the target simulation time has been reached.
 pub struct Simulation {
     executor: Executor,
@@ -216,15 +215,14 @@ impl Simulation {
     /// that event as well as all other events scheduled for the same time.
     ///
     /// Processing is gated by a (possibly blocking) call to
-    /// [`Clock::synchronize()`](crate::time::Clock::synchronize) on the configured
-    /// simulation clock. This method blocks until all newly processed events
-    /// have completed.
+    /// [`Clock::synchronize`] on the configured simulation clock. This method
+    /// blocks until all newly processed events have completed.
     pub fn step(&mut self) -> Result<(), ExecutionError> {
         self.step_to_next(None).map(|_| ())
     }
 
     /// Iteratively advances the simulation time until the specified deadline,
-    /// as if by calling [`Simulation::step()`] repeatedly.
+    /// as if by calling [`Simulation::step`] repeatedly.
     ///
     /// This method blocks until all events scheduled up to the specified target
     /// time have completed. The simulation time upon completion is equal to the
@@ -240,7 +238,7 @@ impl Simulation {
     }
 
     /// Iteratively advances the simulation time, as if by calling
-    /// [`Simulation::step()`] repeatedly.
+    /// [`Simulation::step`] repeatedly.
     ///
     /// This method blocks until all events scheduled have completed.
     pub fn step_unbounded(&mut self) -> Result<(), ExecutionError> {

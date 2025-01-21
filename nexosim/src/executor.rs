@@ -79,8 +79,8 @@ impl Executor {
 
     /// Spawns a task which output will never be retrieved.
     ///
-    /// Note that spawned tasks are not executed until [`run()`](Executor::run)
-    /// is called.
+    /// Note that spawned tasks are not executed until [`run`](Executor::run) is
+    /// called.
     #[allow(unused)]
     pub(crate) fn spawn<T>(&self, future: T) -> Promise<T::Output>
     where
@@ -95,8 +95,8 @@ impl Executor {
 
     /// Spawns a task which output will never be retrieved.
     ///
-    /// Note that spawned tasks are not executed until [`run()`](Executor::run)
-    /// is called.
+    /// Note that spawned tasks are not executed until [`run`](Executor::run) is
+    /// called.
     pub(crate) fn spawn_and_forget<T>(&self, future: T)
     where
         T: Future + Send + 'static,

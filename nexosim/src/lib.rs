@@ -39,9 +39,9 @@
 //! * _output ports_, which are instances of the [`Output`](ports::Output) type
 //!   and can be used to broadcast a message,
 //! * _requestor ports_, which are instances of the
-//!   [`Requestor`](ports::Requestor) type and can be used to broadcast a
-//!   message and receive an iterator yielding the replies from all connected
-//!   replier ports,
+//!   [`Requestor`](ports::Requestor) or [`UniRequestor`](ports::UniRequestor)
+//!   types and can be used to broadcast a message and receive an iterator
+//!   yielding the replies from all connected replier ports,
 //! * _input ports_, which are synchronous or asynchronous methods that
 //!   implement the [`InputFn`](ports::InputFn) trait and take an `&mut self`
 //!   argument, a message argument, and an optional
@@ -54,19 +54,27 @@
 //! are referred to as *requests* and *replies*.
 //!
 //! Models must implement the [`Model`](model::Model) trait. The main purpose of
-//! this trait is to allow models to specify
-//! * a `setup()` method that is called once during model addtion to simulation,
-//!   this method allows e.g. creation and interconnection of submodels inside
-//!   the model,
-//! * an `init()` method that is guaranteed to run once and only once when the
-//!   simulation is initialized, _i.e._ after all models have been connected but
-//!   before the simulation starts.
+//! this trait is to allow models to specify a
+//! [`Model::init`](model::Model::init) method that is guaranteed to run once
+//! and only once when the simulation is initialized, _i.e._ after all models
+//! have been connected but before the simulation starts.
 //!
-//! The `setup()` and `init()` methods have default implementations, so models
-//! that do not require setup and initialization can simply implement the trait
-//! with a one-liner such as `impl Model for MyModel {}`.
+//! The [`Model::init`](model::Model::init) methods has a default
+//! implementations, so models that do not require setup and initialization can
+//! simply implement the trait with a one-liner such as `impl Model for MyModel
+//! {}`.
 //!
-//! #### A simple model
+//! More complex models can be built with the [`ProtoModel`](model::ProtoModel)
+//! trait. The [`ProtoModel::build`](model::ProtoModel::build) method makes it
+//! possible to:
+//!
+//! * build the final [`Model`](model::Model) from a builder (the *model prototype*),
+//! * perform possibly blocking actions when the model is added to the
+//!   simulation rather than when the simulation starts, such as establishing a
+//!   network connection or configuring hardware devices,
+//! * connect submodels and add them to the simulation.
+//!
+//! ### A simple model
 //!
 //! Let us consider for illustration a simple model that forwards its input
 //! after multiplying it by 2. This model has only one input and one output
@@ -98,7 +106,7 @@
 //! impl Model for Multiplier {}
 //! ```
 //!
-//! #### A model using the local context
+//! ### A model using the local context
 //!
 //! Models frequently need to schedule actions at a future time or simply get
 //! access to the current simulation time. To do so, input and replier methods
@@ -141,7 +149,7 @@
 //! [`Address`](simulation::Mailbox)es pointing to that mailbox.
 //!
 //! Addresses are used among others to connect models: each output or requestor
-//! port has a `connect()` method that takes as argument a function pointer to
+//! port has a `connect` method that takes as argument a function pointer to
 //! the corresponding input or replier port method and the address of the
 //! targeted model.
 //!
@@ -230,7 +238,7 @@
 //!
 //! // Pick an arbitrary simulation start time and build the simulation.
 //! let t0 = MonotonicTime::EPOCH;
-//! let mut simu = SimInit::new()
+//! let (mut simu, scheduler) = SimInit::new()
 //!     .add_model(multiplier1, multiplier1_mbox, "multiplier1")
 //!     .add_model(multiplier2, multiplier2_mbox, "multiplier2")
 //!     .add_model(delay1, delay1_mbox, "delay1")
@@ -245,27 +253,27 @@
 //! The simulation can be controlled in several ways:
 //!
 //! 1. by advancing time, either until the next scheduled event with
-//!    [`Simulation::step()`](simulation::Simulation::step), or until a specific
+//!    [`Simulation::step`](simulation::Simulation::step), until a specific
 //!    deadline with
-//!    [`Simulation::step_until()`](simulation::Simulation::step_until).
+//!    [`Simulation::step_until`](simulation::Simulation::step_until), or
+//!    until there are no more scheduled events with
+//!    [`Simulation::step_unbounded`](simulation::Simulation::step_unbounded).
 //! 2. by sending events or queries without advancing simulation time, using
-//!    [`Simulation::process_event()`](simulation::Simulation::process_event) or
-//!    [`Simulation::send_query()`](simulation::Simulation::process_query),
-//! 3. by scheduling events, using for instance
-//!    [`Scheduler::schedule_event()`](simulation::Scheduler::schedule_event).
+//!    [`Simulation::process_event`](simulation::Simulation::process_event) or
+//!    [`Simulation::send_query`](simulation::Simulation::process_query),
+//! 3. by scheduling events with a [`Scheduler`](simulation::Scheduler).
 //!
 //! When initialized with the default clock, the simulation will run as fast as
 //! possible, without regard for the actual wall clock time. Alternatively, the
 //! simulation time can be synchronized to the wall clock time using
-//! [`SimInit::set_clock()`](simulation::SimInit::set_clock) and providing a
+//! [`SimInit::set_clock`](simulation::SimInit::set_clock) and providing a
 //! custom [`Clock`](time::Clock) type or a readily-available real-time clock
 //! such as [`AutoSystemClock`](time::AutoSystemClock).
 //!
-//! Simulation outputs can be monitored using [`EventSlot`](ports::EventSlot)s
-//! and [`EventBuffer`](ports::EventBuffer)s, which can be connected to any
-//! model's output port. While an event slot only gives access to the last value
-//! sent from a port, an event stream is an iterator that yields all events that
-//! were sent in first-in-first-out order.
+//! Simulation outputs can be monitored using [`EventSlot`](ports::EventSlot)s,
+//! [`EventBuffer`](ports::EventBuffer)s, or any implementer of the
+//! [`EventSink`](ports::EventSink) trait, connected to one or several model
+//! output ports.
 //!
 //! This is an example of simulation that could be performed using the above
 //! bench assembly:
@@ -373,20 +381,20 @@
 //!    processed in any order by `B` and `C`, it is guaranteed that `B` will
 //!    process `M1` before `M3`.
 //!
-//! The first guarantee (and only the first) also extends to events scheduled
-//! from a simulation with a
-//! [`Scheduler::schedule_*()`](simulation::Scheduler::schedule_event) method:
-//! if the scheduler contains several events to be delivered at the same time to
-//! the same model, these events will always be processed in the order in which
-//! they were scheduled.
+//! Both guarantees also extend to same-time events scheduled from the global
+//! [`Scheduler`](simulation::Scheduler), *i.e.* the relative ordering of events
+//! scheduled for the same time is preserved and warranties 1 and 2 above
+//! accordingly hold (assuming model `A` stands for the scheduler). Likewise,
+//! the relative order of same-time events self-scheduled by a model using its
+//! [`Context`](model::Context) is preserved.
 //!
 //! [actor_model]: https://en.wikipedia.org/wiki/Actor_model
 //! [pony]: https://www.ponylang.io/
 //!
 //!
-//! # Feature flags
+//! # Cargo feature flags
 //!
-//! ## Tracing support
+//! ## Tracing
 //!
 //! The `tracing` feature flag provides support for the
 //! [`tracing`](https://docs.rs/tracing/latest/tracing/) crate and can be
@@ -409,32 +417,50 @@
 //! nexosim = { version = "0.3.0-beta.0", features = ["server"] }
 //! ```
 //!
+//! See the [`registry`] and [`server`] modules for more information.
+//!
+//! Front-end usage documentation will be added upon release of the NeXosim
+//! Python client.
+//!
+//!
 //! # Other resources
 //!
 //! ## Other examples
 //!
-//! The [`examples`][gh_examples] directory in the main repository contains more
-//! fleshed out examples that demonstrate various capabilities of the simulation
+//! Several [`examples`][gh_examples] are available that contain more fleshed
+//! out examples and demonstrate various capabilities of the simulation
 //! framework.
 //!
 //! [gh_examples]:
 //!     https://github.com/asynchronics/nexosim/tree/main/nexosim/examples
 //!
-//! ## Modules documentation
 //!
-//! While the above overview does cover the basic concepts, more information is
-//! available in the documentation of the different modules:
+//! ## Other features and advanced topics
 //!
-//! * the [`model`] module provides more details about the signatures of input
-//!   and replier port methods and discusses model initialization in the
-//!   documentation of [`model::Model`] and self-scheduling methods as well as
-//!   scheduling cancellation in the documentation of [`model::Context`],
-//! * the [`simulation`] module discusses how the capacity of mailboxes may
-//!   affect the simulation, how connections can be modified after the
-//!   simulation was instantiated, and which pathological situations can lead to
-//!   a deadlock,
-//! * the [`time`] module discusses in particular the monotonic timestamp format
-//!   used for simulations ([`time::MonotonicTime`]).
+//! While the above overview does cover most basic concepts, more information is
+//! available in the modules' documentation:
+//!
+//! * the [`model`] module provides more details about models, **model
+//!   prototypes** and **hierarchical models**; be sure to check as well the
+//!   documentation of [`model::Context`] for topics such as **self-scheduling**
+//!   methods and **event cancellation**,
+//! * the [`ports`] module discusses in more details model ports and simulation
+//!   endpoints, as well as the ability to **modify and filter messages**
+//!   exchanged between ports; it also provides
+//!   [`EventSource`](ports::EventSource) and
+//!   [`QuerySource`](ports::QuerySource) objects which can be connected to
+//!   models just like [`Output`](ports::Output) and
+//!   [`Requestor`](ports::Requestor) ports, but for use as simulation
+//!   endpoints.
+//! * the [`registry`] and [`server`] modules make it possible to manage and
+//!   monitor a simulation locally or remotely from a NeXosim Python client,
+//! * the [`simulation`] module discusses **mailbox capacity** and pathological
+//!   situations that may lead to a **deadlock**,
+//! * the [`time`] module introduces the [`time::MonotonicTime`] monotonic
+//!   timestamp object and **simulation clocks**.
+//! * the [`tracing`] module discusses time-stamping and filtering of `tracing`
+//!   events.
+//!
 #![warn(missing_docs, missing_debug_implementations, unreachable_pub)]
 #![cfg_attr(docsrs, feature(doc_auto_cfg, doc_cfg_hide))]
 #![cfg_attr(docsrs, doc(cfg_hide(feature = "dev-hooks")))]
@@ -458,4 +484,5 @@ pub mod server;
 pub mod tracing;
 
 #[cfg(feature = "dev-hooks")]
+#[doc(hidden)]
 pub mod dev_hooks;

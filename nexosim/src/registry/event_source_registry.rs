@@ -92,7 +92,7 @@ pub(crate) trait EventSourceAny: Send + Sync + 'static {
     ) -> Result<(Action, ActionKey), DeserializationError>;
 
     /// Human-readable name of the event type, as returned by
-    /// `any::type_name()`.
+    /// `any::type_name`.
     fn event_type_name(&self) -> &'static str;
 }
 

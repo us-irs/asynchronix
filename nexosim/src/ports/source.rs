@@ -188,13 +188,13 @@ impl<T: Clone + Send + 'static> fmt::Debug for EventSource<T> {
     }
 }
 
-/// A request source port.
+/// A query source port.
 ///
 /// The `QuerySource` port is similar to an
-/// [`Requestor`](crate::ports::Requestor) port in that it can send events to
-/// connected input ports. It is not meant, however, to be instantiated as a
-/// member of a model, but rather as a simulation monitoring endpoint
-/// instantiated during bench assembly.
+/// [`Requestor`](crate::ports::Requestor) port in that it can send requests to
+/// connected replier ports and receive replies. It is not meant, however, to be
+/// instantiated as a member of a model, but rather as a simulation monitoring
+/// endpoint instantiated during bench assembly.
 pub struct QuerySource<T: Clone + Send + 'static, R: Send + 'static> {
     broadcaster: QueryBroadcaster<T, R>,
 }

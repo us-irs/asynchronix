@@ -50,7 +50,7 @@ impl fmt::Debug for EventSinkRegistry {
 /// A type-erased `EventSinkStream`.
 pub(crate) trait EventSinkStreamAny: Send + 'static {
     /// Human-readable name of the event type, as returned by
-    /// `any::type_name()`.
+    /// `any::type_name`.
     fn event_type_name(&self) -> &'static str;
 
     /// Starts or resumes the collection of new events.

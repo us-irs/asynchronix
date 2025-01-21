@@ -69,7 +69,7 @@
 //! 2024-09-10T14:39:24.670921Z  INFO my_simulation: something happened outside the simulation
 //! ```
 //!
-//! Alternatively, `SimulationTime::with_system_timer_always()` can be used to
+//! Alternatively, `SimulationTime::with_system_timer_always` can be used to
 //! always prepend the system time even for simulation events:
 //!
 //! ```text

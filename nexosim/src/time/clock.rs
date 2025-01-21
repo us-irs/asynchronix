@@ -10,7 +10,7 @@ use crate::time::MonotonicTime;
 /// as-fast-as-possible and real-time clocks.
 ///
 /// A clock can be associated to a simulation prior to initialization by calling
-/// [`SimInit::set_clock()`](crate::simulation::SimInit::set_clock).
+/// [`SimInit::set_clock`](crate::simulation::SimInit::set_clock).
 pub trait Clock: Send {
     /// Blocks until the deadline.
     fn synchronize(&mut self, deadline: MonotonicTime) -> SyncStatus;
@@ -107,7 +107,7 @@ impl SystemClock {
     /// The provided reference time may lie in the past or in the future.
     ///
     /// Note that, even though the wall clock reference is specified with the
-    /// (non-monotonic) system clock, the [`synchronize()`](Clock::synchronize)
+    /// (non-monotonic) system clock, the [`synchronize`](Clock::synchronize)
     /// method will still use the system's _monotonic_ clock. This constructor
     /// makes a best-effort attempt at synchronizing the monotonic clock with
     /// the non-monotonic system clock _at construction time_, but this
@@ -164,8 +164,8 @@ impl Clock for SystemClock {
 /// monotonic clock.
 ///
 /// This clock is similar to [`SystemClock`] except that the first call to
-/// [`synchronize()`](Clock::synchronize) never blocks and implicitly defines
-/// the reference time. In other words, the clock starts running on its first
+/// [`synchronize`](Clock::synchronize) never blocks and implicitly defines the
+/// reference time. In other words, the clock starts running on its first
 /// invocation.
 #[derive(Copy, Clone, Debug, Default)]
 pub struct AutoSystemClock {

@@ -10,7 +10,8 @@ struct Inner<T> {
     slot: Mutex<Option<T>>,
 }
 
-/// An [`EventSink`] and [`EventSinkStream`] that only keeps the last event.
+/// An iterator implementing [`EventSink`] and [`EventSinkStream`] that only
+/// keeps the last event.
 ///
 /// Once the value is read, the iterator will return `None` until a new value is
 /// received. If the slot contains a value when a new value is received, the

@@ -59,7 +59,7 @@ impl Executor {
     /// Spawns a task and returns a promise that can be polled to retrieve the
     /// task's output.
     ///
-    /// Note that spawned tasks are not executed until [`run()`](Executor::run)
+    /// Note that spawned tasks are not executed until [`run`](Executor::run)
     /// is called.
     pub(crate) fn spawn<T>(&self, future: T) -> Promise<T::Output>
     where
@@ -91,7 +91,7 @@ impl Executor {
     /// This is mostly useful to avoid undue reference counting for futures that
     /// return a `()` type.
     ///
-    /// Note that spawned tasks are not executed until [`run()`](Executor::run)
+    /// Note that spawned tasks are not executed until [`run`](Executor::run)
     /// is called.
     pub(crate) fn spawn_and_forget<T>(&self, future: T)
     where

@@ -25,7 +25,9 @@ use crate::{time::TearableAtomicTime, util::sync_cell::SyncCell};
 
 const GLOBAL_SCHEDULER_ORIGIN_ID: usize = 0;
 
-/// A global scheduler.
+/// A global simulation scheduler.
+///
+/// A `Scheduler` can be `Clone`d and sent to other threads.
 #[derive(Clone)]
 pub struct Scheduler(GlobalScheduler);
 
@@ -39,9 +41,6 @@ impl Scheduler {
     }
 
     /// Returns the current simulation time.
-    ///
-    /// Beware that, if the scheduler runs in a separate thread as the
-    /// simulation, the time may change concurrently.
     ///
     /// # Examples
     ///
@@ -200,9 +199,9 @@ impl fmt::Debug for Scheduler {
 /// Managed handle to a scheduled action.
 ///
 /// An `AutoActionKey` is a managed handle to a scheduled action that cancels
-/// action on drop.
+/// its associated action on drop.
 #[derive(Debug)]
-#[must_use = "managed action key shall be used"]
+#[must_use = "dropping this key immediately cancels the associated action"]
 pub struct AutoActionKey {
     is_cancelled: Arc<AtomicBool>,
 }
@@ -295,6 +294,12 @@ impl Error for SchedulingError {}
 
 /// A possibly periodic, possibly cancellable action that can be scheduled or
 /// processed immediately.
+///
+/// `Actions` can be created from an [`EventSource`](crate::ports::EventSource)
+/// or [`QuerySource`](crate::ports::QuerySource). They can be used to schedule
+/// events and requests with [`Scheduler::schedule`], or to process events and
+/// requests immediately with
+/// [`Simulation::process`](crate::simulation::Simulation::process).
 pub struct Action {
     inner: Box<dyn ActionInner>,
 }
