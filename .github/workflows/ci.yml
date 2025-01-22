@@ -169,7 +169,10 @@ jobs:
         run: cargo fmt --all -- --check
 
       - name: Run cargo clippy
-        run: cargo clippy --all-features
+        run: |
+          cargo clippy --tests --all-features
+          # See PR#75: https://github.com/asynchronics/nexosim/pull/75
+          cargo clippy --examples --all-features -- -A clippy::new_without_default -A clippy::manual_async_fn
 
   docs:
     name: Docs
