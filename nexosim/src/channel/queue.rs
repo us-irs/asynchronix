@@ -493,12 +493,12 @@ mod tests {
     fn queue_closed_by_consumer() {
         let (p, mut c) = queue(3);
 
-        assert_eq!(p.is_closed(), false);
+        assert!(!p.is_closed());
         assert!(p.push(|b| RecycleBox::recycle(b, 42)).is_ok());
 
         c.close();
 
-        assert_eq!(p.is_closed(), true);
+        assert!(p.is_closed());
         assert!(matches!(
             p.push(|b| RecycleBox::recycle(b, 13)),
             Err(PushError::Closed)
