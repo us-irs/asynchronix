@@ -567,9 +567,8 @@ mod tests {
 
         let th_broadcast = thread::spawn(move || {
             let iter = block_on(broadcaster.broadcast(MESSAGE)).unwrap();
-            let sum = iter.sum::<usize>();
 
-            sum
+            iter.sum::<usize>()
         });
 
         let th_recv: Vec<_> = mailboxes
