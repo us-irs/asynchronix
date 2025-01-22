@@ -482,7 +482,7 @@ mod tests {
 
         assert!(matches!(c.pop(), Err(PopError::Empty)));
 
-        assert!(matches!(p.push(|b| RecycleBox::recycle(b, 42)), Ok(_)));
+        assert!(p.push(|b| RecycleBox::recycle(b, 42)).is_ok());
         p.close();
 
         assert_eq!(*c.pop().unwrap(), 42);
@@ -494,7 +494,7 @@ mod tests {
         let (p, mut c) = queue(3);
 
         assert_eq!(p.is_closed(), false);
-        assert!(matches!(p.push(|b| RecycleBox::recycle(b, 42)), Ok(_)));
+        assert!(p.push(|b| RecycleBox::recycle(b, 42)).is_ok());
 
         c.close();
 
