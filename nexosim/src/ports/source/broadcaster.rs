@@ -567,7 +567,7 @@ mod tests {
 
         let th_broadcast = thread::spawn(move || {
             let iter = block_on(broadcaster.broadcast(MESSAGE)).unwrap();
-            let sum = iter.fold(0, |acc, val| acc + val);
+            let sum = iter.sum::<usize>();
 
             sum
         });
@@ -622,11 +622,7 @@ mod tests {
 
                 // Send messages reaching only one receiver each.
                 for id in 0..N_RECV {
-                    sum += broadcaster
-                        .broadcast(id)
-                        .await
-                        .unwrap()
-                        .fold(0, |acc, val| acc + val);
+                    sum += broadcaster.broadcast(id).await.unwrap().sum::<usize>();
                 }
 
                 // Broadcast the special value to all receivers.
@@ -634,15 +630,11 @@ mod tests {
                     .broadcast(BROADCAST_ALL)
                     .await
                     .unwrap()
-                    .fold(0, |acc, val| acc + val);
+                    .sum::<usize>();
 
                 // Send again messages reaching only one receiver each.
                 for id in 0..N_RECV {
-                    sum += broadcaster
-                        .broadcast(id)
-                        .await
-                        .unwrap()
-                        .fold(0, |acc, val| acc + val);
+                    sum += broadcaster.broadcast(id).await.unwrap().sum::<usize>();
                 }
 
                 sum
