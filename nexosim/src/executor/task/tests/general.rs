@@ -164,13 +164,13 @@ fn task_schedule() {
 
     let (future, future_is_alive, output_is_alive) = MonitoredFuture::new(async move { 42 });
     let (promise, runnable, _cancel_token) = spawn(future, schedule_runnable, ());
-    assert_eq!(future_is_alive.get(), true);
-    assert_eq!(output_is_alive.get(), false);
+    assert!(future_is_alive.get());
+    assert!(!output_is_alive.get());
 
     // The task should complete immediately when ran.
     runnable.run();
-    assert_eq!(future_is_alive.get(), false);
-    assert_eq!(output_is_alive.get(), true);
+    assert!(!future_is_alive.get());
+    assert!(output_is_alive.get());
     assert_eq!(promise.poll().map(|v| *v), Stage::Ready(42));
 }
 
@@ -200,13 +200,13 @@ fn task_schedule_and_forget() {
 
     let (future, future_is_alive, output_is_alive) = MonitoredFuture::new(async {});
     let (runnable, _cancel_token) = spawn_and_forget(future, schedule_runnable, ());
-    assert_eq!(future_is_alive.get(), true);
-    assert_eq!(output_is_alive.get(), false);
+    assert!(future_is_alive.get());
+    assert!(!output_is_alive.get());
 
     // The task should complete immediately when ran.
     runnable.run();
-    assert_eq!(future_is_alive.get(), false);
-    assert_eq!(output_is_alive.get(), true);
+    assert!(!future_is_alive.get());
+    assert!(output_is_alive.get());
 }
 
 #[test]
@@ -215,25 +215,23 @@ fn task_wake() {
 
     let (sender, receiver) = oneshot::channel();
 
-    let (future, future_is_alive, output_is_alive) = MonitoredFuture::new(async move {
-        let result = receiver.await.unwrap();
-        result
-    });
+    let (future, future_is_alive, output_is_alive) =
+        MonitoredFuture::new(async move { receiver.await.unwrap() });
 
     let (promise, runnable, _cancel_token) = spawn(future, schedule_runnable, ());
     runnable.run();
 
     // The future should have been polled but should not have completed.
-    assert_eq!(output_is_alive.get(), false);
+    assert!(!output_is_alive.get());
     assert!(promise.poll().is_pending());
 
     // Wake the task.
     sender.send(42).unwrap();
 
     // The task should have been scheduled by the channel sender.
-    assert_eq!(run_scheduled_runnable(), true);
-    assert_eq!(future_is_alive.get(), false);
-    assert_eq!(output_is_alive.get(), true);
+    assert!(run_scheduled_runnable());
+    assert!(!future_is_alive.get());
+    assert!(output_is_alive.get());
     assert_eq!(promise.poll().map(|v| *v), Stage::Ready(42));
 }
 
@@ -244,10 +242,7 @@ fn task_wake_mt() {
     let (sender, receiver) = oneshot::channel();
 
     let (promise, runnable, _cancel_token) = spawn(
-        async move {
-            let result = receiver.await.unwrap();
-            result
-        },
+        async move { receiver.await.unwrap() },
         schedule_runnable,
         (),
     );
@@ -284,15 +279,15 @@ fn task_wake_and_forget() {
     runnable.run();
 
     // The future should have been polled but should not have completed.
-    assert_eq!(output_is_alive.get(), false);
+    assert!(!output_is_alive.get());
 
     // Wake the task.
     sender.send(42).unwrap();
 
     // The task should have been scheduled by the channel sender.
-    assert_eq!(run_scheduled_runnable(), true);
-    assert_eq!(future_is_alive.get(), false);
-    assert_eq!(output_is_alive.get(), true);
+    assert!(run_scheduled_runnable());
+    assert!(!future_is_alive.get());
+    assert!(output_is_alive.get());
 }
 
 #[test]
@@ -321,7 +316,7 @@ fn task_multiple_wake() {
     sender.try_send(3).unwrap();
 
     // The task should have been scheduled by the channel sender.
-    assert_eq!(run_scheduled_runnable(), true);
+    assert!(run_scheduled_runnable());
     assert!(promise.poll().is_pending());
 
     // The channel should be empty. Wake the task 2 more times.
@@ -329,11 +324,11 @@ fn task_multiple_wake() {
     sender.try_send(5).unwrap();
 
     // The task should have been scheduled by the channel sender.
-    assert_eq!(run_scheduled_runnable(), true);
+    assert!(run_scheduled_runnable());
 
     // The task should have completed.
-    assert_eq!(future_is_alive.get(), false);
-    assert_eq!(output_is_alive.get(), true);
+    assert!(!future_is_alive.get());
+    assert!(output_is_alive.get());
     assert_eq!(promise.poll().map(|v| *v), Stage::Ready(15));
 }
 
@@ -401,13 +396,13 @@ fn task_cancel_scheduled() {
 
     // The future should not be dropped while the `Runnable` exists, even if the
     // task is cancelled, but the task should be seen as cancelled.
-    assert_eq!(future_is_alive.get(), true);
+    assert!(future_is_alive.get());
     assert!(promise.poll().is_cancelled());
 
     // An attempt to run the task should now drop the future without polling it.
     runnable.run();
-    assert_eq!(future_is_alive.get(), false);
-    assert_eq!(output_is_alive.get(), false);
+    assert!(!future_is_alive.get());
+    assert!(!output_is_alive.get());
 }
 
 #[test]
@@ -422,8 +417,8 @@ fn task_cancel_unscheduled() {
 
     let (promise, runnable, cancel_token) = spawn(future, schedule_runnable, ());
     runnable.run();
-    assert_eq!(future_is_alive.get(), true);
-    assert_eq!(output_is_alive.get(), false);
+    assert!(future_is_alive.get());
+    assert!(!output_is_alive.get());
 
     // Cancel the task while no `Runnable` exists (the task is not scheduled as
     // it needs to be woken by the channel sender first).
@@ -433,8 +428,8 @@ fn task_cancel_unscheduled() {
 
     // The future should be dropped immediately upon cancellation without
     // completing.
-    assert_eq!(future_is_alive.get(), false);
-    assert_eq!(output_is_alive.get(), false);
+    assert!(!future_is_alive.get());
+    assert!(!output_is_alive.get());
 }
 
 #[test]
@@ -445,12 +440,12 @@ fn task_cancel_completed() {
 
     let (promise, runnable, cancel_token) = spawn(future, schedule_runnable, ());
     runnable.run();
-    assert_eq!(future_is_alive.get(), false);
-    assert_eq!(output_is_alive.get(), true);
+    assert!(!future_is_alive.get());
+    assert!(output_is_alive.get());
 
     // Cancel the already completed task.
     cancel_token.cancel();
-    assert_eq!(output_is_alive.get(), true);
+    assert!(output_is_alive.get());
     assert_eq!(promise.poll().map(|v| *v), Stage::Ready(42));
 }
 
@@ -479,8 +474,8 @@ fn task_drop_promise_scheduled() {
 
     // The task should complete immediately when ran.
     runnable.run();
-    assert_eq!(future_is_alive.get(), false);
-    assert_eq!(output_is_alive.get(), true);
+    assert!(!future_is_alive.get());
+    assert!(output_is_alive.get());
 }
 
 #[test]
@@ -504,9 +499,9 @@ fn task_drop_promise_unscheduled() {
     assert!(sender.send(()).is_ok());
 
     // The task should have been scheduled by the channel sender.
-    assert_eq!(run_scheduled_runnable(), true);
-    assert_eq!(future_is_alive.get(), false);
-    assert_eq!(output_is_alive.get(), true);
+    assert!(run_scheduled_runnable());
+    assert!(!future_is_alive.get());
+    assert!(output_is_alive.get());
 }
 
 #[test]
@@ -538,9 +533,9 @@ fn task_drop_runnable() {
     assert!(sender.send(()).is_ok());
 
     // Drop the task scheduled by the channel sender.
-    assert_eq!(drop_runnable(), true);
-    assert_eq!(future_is_alive.get(), false);
-    assert_eq!(output_is_alive.get(), false);
+    assert!(drop_runnable());
+    assert!(!future_is_alive.get());
+    assert!(!output_is_alive.get());
     assert!(promise.poll().is_cancelled());
 }
 

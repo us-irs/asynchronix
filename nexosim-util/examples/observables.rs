@@ -48,16 +48,12 @@ pub enum ModeId {
 }
 
 /// Processor state.
+#[derive(Default)]
 pub enum State {
+    #[default]
     Off,
     Idle,
     Processing(AutoActionKey),
-}
-
-impl Default for State {
-    fn default() -> Self {
-        State::Off
-    }
 }
 
 impl Observable<ModeId> for State {
