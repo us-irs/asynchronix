@@ -40,8 +40,9 @@ impl Default for Hk {
 }
 
 /// Processor mode ID.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub enum ModeId {
+    #[default]
     Off,
     Idle,
     Processing,
