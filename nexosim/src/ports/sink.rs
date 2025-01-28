@@ -1,3 +1,4 @@
+pub(crate) mod blocking_event_queue;
 pub(crate) mod event_buffer;
 pub(crate) mod event_slot;
 

@@ -273,6 +273,9 @@ pub use input::markers;
 pub use input::{InputFn, ReplierFn};
 pub use output::{Output, Requestor, UniRequestor};
 pub use sink::{
-    event_buffer::EventBuffer, event_slot::EventSlot, EventSink, EventSinkStream, EventSinkWriter,
+    blocking_event_queue::{BlockingEventQueue, BlockingEventQueueReader},
+    event_buffer::EventBuffer,
+    event_slot::EventSlot,
+    EventSink, EventSinkStream, EventSinkWriter,
 };
 pub use source::{EventSource, QuerySource, ReplyReceiver};
