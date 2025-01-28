@@ -6,7 +6,7 @@ small, simple simulations to very large simulation benches with complex
 time-driven state machines.
 
 
-## 🎉🥳 NeXosim 0.3 is out! 🚀🛰️
+## 🎉🥳 NeXosim 0.3.1 is out! 🚀🛰️
 
 See the [changelog](CHANGELOG.md) for a summary of new features, or head to the extensive [API documentation][API] for the details.
 
@@ -67,7 +67,7 @@ To use the latest version, add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-nexosim = "0.3.0"
+nexosim = "0.3.1"
 ```
 
 

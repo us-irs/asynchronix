@@ -1,3 +1,10 @@
+# 0.3.1 (2025-01-28)
+
+- Add a blocking event queue ([#82]).
+
+[#82]: https://github.com/asynchronics/nexosim/pull/82
+
+
 # 0.3.0 (2025-01-20)
 
 The final 0.3.0 release features a very large number of improvements and API
@@ -11,9 +18,9 @@ This release is not compatible with the 0.2.* releases, but porting models and b
   execution ([#12], [#24], [#25], [#26], [#29], [#43], [#78], [#79])
 - Single-threaded executor supporting compilation to WebAssembly ([#24])
 - Add support for the `tracing` crate ([#47])
-- Make `Output`s and `Requestor`s `Clone`-able ([#30], [#48]) 
+- Make `Output`s and `Requestor`s `Clone`-able ([#30], [#48])
 - Make the global `Scheduler` an owned `Clone`-able type that can be sent to
-  other threads ([#30]) 
+  other threads ([#30])
 - Add an automatically managed action key for scheduled actions/events ([#27])
 - Enable connection of different input/output pairs with `map_connect()` methods
   on `Output` and `Requestor` ([#32])
@@ -21,7 +28,7 @@ This release is not compatible with the 0.2.* releases, but porting models and b
   with `filter_map_connect()` methods on `Output` and `Requestor` ([#32])
 - Implement deadlock detection ([#51])
 - Streamline the builder pattern for models with a `ProtoModel` trait ([#54])
-- Implement execution timeout ([#57]) 
+- Implement execution timeout ([#57])
 - Return an error when a real-time simulation clock looses synchronization
   ([#58])
 - Catch model panics and report them as errors ([#60])
@@ -44,14 +51,14 @@ This release is not compatible with the 0.2.* releases, but porting models and b
 # 0.3.0-beta.0 (2024-11-16)
 
 This beta release features a very large number of improvements and API changes,
-including: 
+including:
 
 - Add a gRPC server for remote execution ([#12], [#24], [#25], [#26], [#29],
   [#43])
 - Single-threaded executor supporting compilation to WebAssembly ([#24])
 - Add support for the `tracing` crate ([#47])
-- Make `Output`s and `Requestor`s `Clone`-able ([#30], [#48]) 
-- Make the global `Scheduler` an owned `Clone`-able type ([#30]) 
+- Make `Output`s and `Requestor`s `Clone`-able ([#30], [#48])
+- Make the global `Scheduler` an owned `Clone`-able type ([#30])
 - Add an automatically managed action key for scheduled actions/events ([#27])
 - Enable connection of different input/output pairs with `map_connect()` methods
   on `Output` and `Requestor` ([#32])
@@ -59,7 +66,7 @@ including:
   with `filter_map_connect()` methods on `Output` and `Requestor` ([#32])
 - Implement deadlock detection ([#51])
 - Streamline the builder pattern for models with a `ProtoModel` trait ([#54])
-- Implement execution timeout ([#57]) 
+- Implement execution timeout ([#57])
 - Return an error when a real-time simulation clock looses synchronization
   ([#58])
 - Catch model panics and report them as errors ([#60])
