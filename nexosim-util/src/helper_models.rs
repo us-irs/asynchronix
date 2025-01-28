@@ -9,20 +9,21 @@ use nexosim::model::{Context, InitializedModel, Model};
 
 /// A ticker model.
 ///
-/// This model self-schedules with a provided period keeping simulation alive.
+/// This model self-schedules at the specified period, which can be used to keep
+/// the simulation alive.
 pub struct Ticker {
-    /// Tick period in milliseconds.
+    /// Tick period.
     tick: Duration,
 }
 
 impl Ticker {
-    /// Creates new `Ticker` with provided tick period in milliseconds.
+    /// Creates a new `Ticker` with the specified self-scheduling period.
     pub fn new(tick: Duration) -> Self {
         Self { tick }
     }
 
     /// Self-scheduled function.
-    pub async fn tick(&mut self) {}
+    async fn tick(&mut self) {}
 }
 
 impl Model for Ticker {

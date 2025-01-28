@@ -71,7 +71,7 @@ pub struct Counter {
 }
 
 impl Counter {
-    /// Creates new `Counter` model.
+    /// Creates a new `Counter` model.
     fn new() -> Self {
         let mode = Output::default();
         let count = Output::default();
@@ -122,7 +122,7 @@ pub struct Detector {
 }
 
 impl Detector {
-    /// Creates new `Detector` model.
+    /// Creates a new `Detector` model.
     pub fn new() -> Self {
         Self {
             pulse: Output::default(),
@@ -140,7 +140,7 @@ impl Detector {
         self.next = None;
     }
 
-    /// Generates pulse.
+    /// Generates a pulse.
     ///
     /// Note: self-scheduling async methods must be for now defined with an
     /// explicit signature instead of `async fn` due to a rustc issue.
@@ -155,7 +155,7 @@ impl Detector {
         }
     }
 
-    /// Schedules next detection.
+    /// Schedules the next detection.
     async fn schedule_next(&mut self, cx: &mut Context<Self>) {
         let next = {
             let mut rng = rand::thread_rng();
@@ -204,7 +204,7 @@ fn main() -> Result<(), SimulationError> {
     counter
         .count
         .map_connect_sink(|c| Event::Count(*c), &observer);
-    let mut observer = observer.reader();
+    let mut observer = observer.into_reader();
 
     // Start time (arbitrary since models do not depend on absolute time).
     let t0 = MonotonicTime::EPOCH;

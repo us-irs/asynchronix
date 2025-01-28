@@ -8,9 +8,11 @@ use super::{EventSink, EventSinkStream, EventSinkWriter};
 
 /// A blocking event queue with an unbounded size.
 ///
-/// Implements [`EventSink`], while [`EventSinkStream`] is implemented by
-/// [`BlockingEventQueueReader`] available through the
-/// [`BlockingEventQueue::reader`] method.
+/// Implements [`EventSink`].
+///
+/// Note that [`EventSinkStream`] is implemented by
+/// [`BlockingEventQueueReader`], created with the
+/// [`BlockingEventQueue::into_reader`] method.
 pub struct BlockingEventQueue<T> {
     is_open: Arc<AtomicBool>,
     sender: Sender<T>,
@@ -20,24 +22,24 @@ pub struct BlockingEventQueue<T> {
 impl<T> BlockingEventQueue<T> {
     /// Creates an open `BlockingEventQueue`.
     pub fn new() -> Self {
-        Self::new_with_open_state(true)
+        Self::new_with_state(true)
     }
 
     /// Creates a closed `BlockingEventQueue`.
     pub fn new_closed() -> Self {
-        Self::new_with_open_state(false)
+        Self::new_with_state(false)
     }
 
-    /// Returns consumer handle.
-    pub fn reader(self) -> BlockingEventQueueReader<T> {
+    /// Returns a consumer handle.
+    pub fn into_reader(self) -> BlockingEventQueueReader<T> {
         BlockingEventQueueReader {
             is_open: self.is_open,
             receiver: self.receiver,
         }
     }
 
-    /// Creates new `BlockingEventQueue` in a given state.
-    fn new_with_open_state(is_open: bool) -> Self {
+    /// Creates a new `BlockingEventQueue` in the specified state.
+    fn new_with_state(is_open: bool) -> Self {
         let (sender, receiver) = channel();
         Self {
             is_open: Arc::new(AtomicBool::new(is_open)),
@@ -70,10 +72,10 @@ impl<T> fmt::Debug for BlockingEventQueue<T> {
     }
 }
 
-/// A consumer handle to blocking event queue.
+/// A consumer handle of a `BlockingEventQueue`.
 ///
-/// Implements [`EventSinkStream`]. Call to iterator's `next` function is
-/// blocking. `None` is returned when simulation is closed.
+/// Implements [`EventSinkStream`]. Calls to the iterator's `next` method are
+/// blocking. `None` is returned when all writer handles have been dropped.
 pub struct BlockingEventQueueReader<T> {
     is_open: Arc<AtomicBool>,
     receiver: Receiver<T>,
