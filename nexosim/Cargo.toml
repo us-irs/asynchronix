@@ -41,6 +41,7 @@ server = [
     "dep:tonic",
     "tai-time/serde",
 ]
+serde = ["dep:serde"]
 tracing = ["dep:tracing", "dep:tracing-subscriber"]
 
 # DEVELOPMENT ONLY: API-unstable public exports meant for external test/benchmarking.
